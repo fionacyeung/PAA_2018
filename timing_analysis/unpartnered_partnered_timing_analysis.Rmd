@@ -1,0 +1,94 @@
+---
+title: "unpartnered_partnered_timing_analysis"
+author: "Fiona Yeung"
+date: "May 1, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This timing analysis shows that the number of characteristics group is the main driver of the run time. I believe the computational overhead from matrix processing also increases with larger network size. Hence the run time also increases with the network size.
+
+The code that generated this result is 100% R code with no parallelization. This timing analysis was done on my laptop with 8th Gen Intel Core i7-8550U processor (1.80GHz 8MB) and 16GB DDR4 2400 MHz memory.
+
+```{r includes, echo=FALSE}
+library(knitr)
+library(kableExtra)
+options(knitr.table.format = "latex")
+
+```
+
+```{r cars, echo=FALSE, results='asis'}
+load("timing_analysis.RData")
+
+# by # groups
+kable(subset(df, X..characteristics.groups==8 & X..coefficients.estimated==14, select=1:6), 
+      col.names=c("network size", "# coeff", "# groups", "run time", "# paired indiv.", "# unpaired indiv."), 
+      row.names = F, booktabs=T)
+kable(subset(df, X..characteristics.groups==32 & X..coefficients.estimated==12, select=1:6), 
+      col.names=c("network size", "# coeff", "# groups", "run time", "# paired indiv.", "# unpaired indiv."), 
+      row.names = F, booktabs=T)
+
+# by network size
+df_tmp = subset(df, network.size==14527, select=1:4)
+df_tmp = df_tmp[order(df_tmp$X..characteristics.groups, df_tmp$X..coefficients.estimated),]
+kable(df_tmp, col.names=c("network size", "# coeff", "# groups", "run time"), 
+      row.names = F, booktabs=T)
+
+df_tmp = subset(df, network.size==527704, select=1:4)
+df_tmp = df_tmp[order(df_tmp$X..characteristics.groups, df_tmp$X..coefficients.estimated),]
+kable(df_tmp, col.names=c("network size", "# coeff", "# groups", "run time"), 
+      row.names = F, booktabs=T)
+```
+
+Raw numbers from all runs:
+
+```{r all_runs, echo=F, results='asis'}
+df$formula = c(rep(1:5,each=6), 1:5)
+kable(df, col.names=c("network size", "# coeff", "# groups", "elapsed time", "# paired indiv.", 
+                  "# unpaired indiv.", "user time", "system time", "formula"), row.names = F, booktabs=T) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, font_size = 9)
+```
+
+Example of a linear utility function (the one that took the longest in our timing analysis above):
+ff4 = ~ b1nodematch("educlevel_t") + b2nodematch("educlevel_t") +
+  b1absdiff("educlevel_t",1) + b2absdiff("educlevel_t",1) +
+  b1greaterthan("educlevel_t") + b2greaterthan("educlevel_t")
+  
+<!-- $$ -->
+<!-- \begin{aligned} -->
+<!-- U(X_{ij}|\theta_{Ui}) = & \theta_{U0} + \theta_{U1}I(F:<HS, M:<HS) + \theta_{U2}I(F:HS, M:HS) +  \\ -->
+<!-- & \theta_{U3}I(F:SomeCollege, M:SomeCollege) + \theta_{U4}I(F:BA+, M:<BA+) + \\ -->
+<!-- & \theta_{U5}I(F:<HS, M:HS ||F:HS, M:<HS || F:HS, M:SomeCollege || \\ -->
+<!-- &F:SomeCollege, M:HS || F:SomeCollege, M:BA+ || F:BA+, M:SomeCollege) + \\ -->
+<!-- & \theta_{U6}I(F:<HS, M:HS || F:<HS, M:SomeCollege || F:<HS, M:BA+ || \\ -->
+<!-- &F:HS, M:SomeCollege || F:HS, M:BA+ || F:SomeCollege, M:BA+) -->
+<!-- \end{aligned} -->
+<!-- $$ -->
+
+$$
+\begin{aligned}
+U(x_i,z_j|\theta_{Ui}) = & \theta_{U0} + \theta_{U1}I(<HS_i, <HS_j) + \theta_{U2}I(HS_i, HS_j) +  \\
+& \theta_{U3}I(SomeCollege_i, SomeCollege_j) + \theta_{U4}I(BA+_i, BA+_j) + \\
+& \theta_{U5}I(<HS_i, HS_j \ || \ HS_i, <HS_j \ || \ HS_i, SomeCollege_j \ || \\
+& SomeCollege_i, HS_j \ || \ SomeCollege_i, BA+_j \ || \ BA+_i, SomeCollege_j) + \\
+& \theta_{U6}I(<HS_i, HS_j \ || \ <HS_i, SomeCollege_j \ || \ <HS_i, BA+_j \ || \\
+& HS_i, SomeCollege_j \ || \ HS_i, BA+_j \ || \ SomeCollege_i, BA+_j)
+\end{aligned}
+$$
+
+
+```{r pmfj, echo=FALSE, results='asis'}
+pmfj_raw = out_2$pmfj * (nrow(Xdata_7) + nrow(Zdata_7))
+pmfj_raw[5,5] = NA
+rownames(pmfj_raw) = c("female: <HS", "female: HS", "female: SomeCollege", "female: BA+", "single male")
+kable(pmfj_raw, row.names = T, 
+      col.names = c("male: <HS", "male: HS", "male: SomeCollege", "male: BA+", "single female"), booktabs=T) %>%
+      row_spec(5, color="orange") %>% column_spec(6, color="orange")
+```
+
+
