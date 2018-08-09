@@ -1,7 +1,8 @@
-# source("unpartnered_partnered_2.R")
+# source("unpartnered_partnered_3.R")
 
 library(knitr)
 library(ggplot2)
+# library(entropy)
 
 ###################### files and libraries for the data ######################
 
@@ -90,11 +91,11 @@ process_data = function(data, complete_cases_only) {
   }
   
   # all females (paired females first)
-  # Xdata = rbind(paired_females, single_females)
-  Xdata = paired_females
+  Xdata = rbind(paired_females, single_females)
+  # Xdata = paired_females
   # all males (paired males first)
-  # Zdata = rbind(paired_males, single_males)
-  Zdata = paired_males
+  Zdata = rbind(paired_males, single_males)
+  # Zdata = paired_males
   # sanity checks
   all(Xdata$female_t == "Female")
   all(Zdata$female_t == "Male")
@@ -235,11 +236,19 @@ processed_1996 = process_data(data1996, complete_cases_only)
 processed_2001 = process_data(data2001, complete_cases_only)
 processed_2004 = process_data(data2004, complete_cases_only)
 processed_2008 = process_data(data2008, complete_cases_only)
+processed_all = list(Xdata=rbind(processed_1996$Xdata, processed_2001$Xdata, processed_2004$Xdata, processed_2008$Xdata),
+                           Zdata=rbind(processed_1996$Zdata, processed_2001$Zdata, processed_2004$Zdata, processed_2008$Zdata),
+                           mu = bdiag(processed_1996$mu, processed_2001$mu, processed_2004$mu, processed_2008$mu),
+                           paired_females=rbind(processed_1996$paired_females, processed_2001$paired_females, processed_2004$paired_females, processed_2008$paired_females),
+                           paired_males=rbind(processed_1996$paired_males, processed_2001$paired_males, processed_2004$paired_males, processed_2008$paired_males),
+                           single_females=rbind(processed_1996$single_females, processed_2001$single_females, processed_2004$single_females, processed_2008$single_females),
+                           single_males=rbind(processed_1996$single_males, processed_2001$single_males, processed_2004$single_males, processed_2008$single_males))
 
 print(paste0("1996: ", nrow(processed_1996$paired_females)*2/(nrow(processed_1996$single_females)+nrow(processed_1996$single_males)+nrow(processed_1996$paired_females)*2), " are paired"))
 print(paste0("2001: ", nrow(processed_2001$paired_females)*2/(nrow(processed_2001$single_females)+nrow(processed_2001$single_males)+nrow(processed_2001$paired_females)*2), " are paired"))
 print(paste0("2004: ", nrow(processed_2004$paired_females)*2/(nrow(processed_2004$single_females)+nrow(processed_2004$single_males)+nrow(processed_2004$paired_females)*2), " are paired"))
 print(paste0("2008: ", nrow(processed_2008$paired_females)*2/(nrow(processed_2008$single_females)+nrow(processed_2008$single_males)+nrow(processed_2008$paired_females)*2), " are paired"))
+print(paste0("all: ", nrow(processed_all$paired_females)*2/(nrow(processed_all$single_females)+nrow(processed_all$single_males)+nrow(processed_all$paired_females)*2), " are paired"))
 
 ################# source the algo files and load the libraries ################
 
@@ -345,9 +354,12 @@ print("observed joint probabilities")
 print(pmfj$pmfj_obs)
 
 # KL-divergence = sum(p*log(p/q))
-kl = -sum(pmfj$pmfj_est*log(pmfj$pmfj_est/pmfj$pmfj_obs), na.rm=T)
-print("KL-divergence: p = 1996 est. preference, q = 1996 observed")
-print(kl)
+kl_1 = sum(pmfj$pmfj_est*log(pmfj$pmfj_est/pmfj$pmfj_obs), na.rm=T)
+print("KL-divergence (1): p = 1996 est. preference, q = 1996 observed")
+print(kl_1)
+kl_2 = KL.plugin(freqs1 = matrix(pmfj$pmfj_est,ncol=1),freqs2 = matrix(pmfj$pmfj_obs,ncol=1))
+print("KL-divergence (2): p = 1996 est. preference, q = 1996 observed")
+print(kl_2)
 
 # compare counterfactual joint probabilities with observed
 pmfjc = create_counterfactual_distri(ff, out$solution, processed_2008$mu, Xdata, Zdata, processed_2008$Xdata, processed_2008$Zdata, symmetric)
@@ -355,12 +367,10 @@ print("counterfactual joint probabilities")
 print(pmfjc$pmfj_est)
 print("observed joint probabilities")
 print(pmfjc$pmfj_obs)
-
-# not working
-# # KL-divergence = sum(p*log(p/q))
-# klc = -sum(pmfjc$pmfj_est*log(pmfjc$pmfj_est/pmfjc$pmfj_obs), na.rm=T)
-# print("KL-divergence: p = counterfactual 2008 with 1996 preference, q = 2008 observed")
-# print(klc)
+# KL-divergence = sum(p*log(p/q))
+klc = sum(pmfjc$pmfj_est*log(pmfjc$pmfj_est/pmfjc$pmfj_obs), na.rm=T)
+print("KL-divergence: p = counterfactual 2008 with 1996 preference, q = 2008 observed")
+print(klc)
 
 log.txt <- tic.log(format = TRUE)
 log.lst <- tic.log(format = FALSE)
@@ -395,10 +405,70 @@ out2008 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, theta_0, control=control)
 
 dff2008 = data.frame(out2008$solution)
 
+############# fit all data ######################
+
+Xdata = processed_all$Xdata
+Zdata = processed_all$Zdata
+mu = processed_all$mu
+outall <- fitrpm_R_CP(ff, mu, Xdata, Zdata, theta_0, control=control)
+
+dffall = data.frame(outall$solution)
+
 
 ############### combine coeffs from all panels ##################
 
-kable(cbind(dff, dff2001, dff2004, dff2008), col.names = c(1996, 2001, 2004, 2008))
+print(kable(cbind(dff, dff2001, dff2004, dff2008), col.names = c(1996, 2001, 2004, 2008)))
+
+####### compare estimated joint probabilities with truth ########
+pmfj = check_CP_latent(ff, out$solution, mu, Xdata, Zdata, symmetric)
+print("estimated joint probabilities")
+print(pmfj$pmfj_est)
+print("observed joint probabilities")
+print(pmfj$pmfj_obs)
+kl_1 = sum(pmfj$pmfj_est*log(pmfj$pmfj_est/pmfj$pmfj_obs), na.rm=T)
+print("KL-divergence: p = 1996 est. preference, q = 1996 observed")
+print(kl_1)
+# kl_2 = KL.plugin(freqs1 = matrix(pmfj$pmfj_est,ncol=1),freqs2 = matrix(pmfj$pmfj_obs,ncol=1))
+# print("KL-divergence (2): p = 1996 est. preference, q = 1996 observed")
+# print(kl_2)
+
+
+pmfj2001 = check_CP_latent(ff, out2001$solution, processed_2001$mu, processed_2001$Xdata, processed_2001$Zdata, symmetric)
+print("estimated 2001 joint probabilities")
+print(pmfj2001$pmfj_est)
+print("observed 2001 joint probabilities")
+print(pmfj2001$pmfj_obs)
+kl_1 = sum(pmfj2001$pmfj_est*log(pmfj2001$pmfj_est/pmfj2001$pmfj_obs), na.rm=T)
+print("KL-divergence: p = 2001 est. preference, q = 2001 observed")
+print(kl_1)
+# kl_2 = KL.plugin(freqs1 = matrix(pmfj2001$pmfj_est,ncol=1),freqs2 = matrix(pmfj2001$pmfj_obs,ncol=1))
+# print("KL-divergence (2): p = 2001 est. preference, q = 2001 observed")
+# print(kl_2)
+
+pmfj2004 = check_CP_latent(ff, out2004$solution, processed_2004$mu, processed_2004$Xdata, processed_2004$Zdata, symmetric)
+print("estimated 2004 joint probabilities")
+print(pmfj2004$pmfj_est)
+print("observed 2004joint probabilities")
+print(pmfj2004$pmfj_obs)
+kl_1 = sum(pmfj2004$pmfj_est*log(pmfj2004$pmfj_est/pmfj2004$pmfj_obs), na.rm=T)
+print("KL-divergence: p = 2004 est. preference, q = 2004 observed")
+print(kl_1)
+# kl_2 = KL.plugin(freqs1 = matrix(pmfj2004$pmfj_est,ncol=1),freqs2 = matrix(pmfj2004$pmfj_obs,ncol=1))
+# print("KL-divergence (2): p = 2004 est. preference, q = 2004 observed")
+# print(kl_2)
+
+pmfj2008 = check_CP_latent(ff, out2008$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, symmetric)
+print("estimated 2008 joint probabilities")
+print(pmfj2008$pmfj_est)
+print("observed 2008 joint probabilities")
+print(pmfj2008$pmfj_obs)
+kl_1 = sum(pmfj2008$pmfj_est*log(pmfj2008$pmfj_est/pmfj2008$pmfj_obs), na.rm=T)
+print("KL-divergence: p = 2008 est. preference, q = 2008 observed")
+print(kl_1)
+# kl_2 = KL.plugin(freqs1 = matrix(pmfj2008$pmfj_est,ncol=1),freqs2 = matrix(pmfj2008$pmfj_obs,ncol=1))
+# print("KL-divergence (2): p = 2008 est. preference, q = 2008 observed")
+# print(kl_2)
+
 
 ############### plot the data ####################
 
@@ -533,6 +603,7 @@ table(processed_1996$paired_females$educlevel_t, processed_1996$paired_males$edu
 table(processed_2001$paired_females$educlevel_t, processed_2001$paired_males$educlevel_t)
 table(processed_2004$paired_females$educlevel_t, processed_2004$paired_males$educlevel_t)
 table(processed_2008$paired_females$educlevel_t, processed_2008$paired_males$educlevel_t)
+
 
 
 
