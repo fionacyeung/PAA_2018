@@ -1,4 +1,4 @@
-# source("unpartnered_partnered_3.R")
+# source("unpartnered_partnered_2.R")
 
 library(knitr)
 library(ggplot2)
@@ -357,9 +357,9 @@ print(pmfj$pmfj_obs)
 kl_1 = sum(pmfj$pmfj_est*log(pmfj$pmfj_est/pmfj$pmfj_obs), na.rm=T)
 print("KL-divergence (1): p = 1996 est. preference, q = 1996 observed")
 print(kl_1)
-kl_2 = KL.plugin(freqs1 = matrix(pmfj$pmfj_est,ncol=1),freqs2 = matrix(pmfj$pmfj_obs,ncol=1))
-print("KL-divergence (2): p = 1996 est. preference, q = 1996 observed")
-print(kl_2)
+# kl_2 = KL.plugin(freqs1 = matrix(pmfj$pmfj_est,ncol=1),freqs2 = matrix(pmfj$pmfj_obs,ncol=1))
+# print("KL-divergence (2): p = 1996 est. preference, q = 1996 observed")
+# print(kl_2)
 
 # compare counterfactual joint probabilities with observed
 pmfjc = create_counterfactual_distri(ff, out$solution, processed_2008$mu, Xdata, Zdata, processed_2008$Xdata, processed_2008$Zdata, symmetric)
