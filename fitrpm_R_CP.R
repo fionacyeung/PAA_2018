@@ -363,31 +363,37 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, theta_0=NULL, control){
     
     if(control[["hessian"]]){
       
-      H <- K*hessian(loglikelihood_CP,th_hat[1:NumBeta],
-                     GammaW=th_hat[(NumBeta+1):(NumBeta+NumGammaW)],GammaM=th_hat[(NumBeta+NumGammaW+1):(NumBeta+NumGamma)],
-                     Xd=X,Zd=Z,pmfW=pmfW, pmfM=pmfM,pmfj=pmfj, gw=gw, gm=gm, n=n, symmetric=symmetric, sampling=sampling)
+      # # not centered
+      # outer_grad = outer_prod_gradient_CP(theta = th_hat, NumBeta=NumBeta, NumGammaW=NumGammaW, NumGammaM=NumGammaM,
+      #                                     Xd=X,Zd=Z,pmfW=pmfW, pmfM=pmfM,pmfj=pmfj, Xd=X,Zd=Z,pmfW=pmfW, pmfM=pmfM,pmfj=pmfj)
+      # 
+      # # centered
+      # outer_grad_2 = outer_prod_gradient_CP_2(theta = th_hat, loglikfun=loglikfun, NumBeta=NumBeta, NumGammaW=NumGammaW, NumGammaM=NumGammaM,
+      #                                     Xd=X,Zd=Z,pmfW=pmfW, pmfM=pmfM,pmfj=pmfj, gw=gw, gm=gm, n=n, symmetric=symmetric, sampling=sampling)
+      # 
+      # hess_CP = ave_hessian_CP(theta = th_hat, NumBeta=NumBeta, NumGammaW=NumGammaW, NumGammaM=NumGammaM,
+      #                          Xd=X,Zd=Z,pmfW=pmfW, pmfM=pmfM,pmfj=pmfj, gw=gw, gm=gm, n=n, symmetric=symmetric)
+      # 
+      # out$covar = diag(ginv(hess_CP) %*% outer_grad %*% ginv(hess_CP)/n)
+      # out$covar2 = diag(ginv(hess_CP) %*% outer_grad_2 %*% ginv(hess_CP)/n)
+      # 
+      # out$outer_grad = outer_grad
+      # out$outer_grad_2 = outer_grad_2
+      # out$hess_CP = hess_CP
+      browser()
       
-      Geqfun <- K*nl.jacobian(th_hat[1:NumBeta], equality_constraint_CP,  
-                              GammaW=th_hat[(NumBeta+1):(NumBeta+NumGammaW)],GammaM=th_hat[(NumBeta+NumGammaW+1):(NumBeta+NumGamma)],
-                              Xd=X,Zd=Z, pmfW=pmfW, pmfM=pmfM, gw=gw, gm=gm, n=n, symmetric=symmetric, sampling=sampling)
+      asym_var_out = asympt_var(theta=th_hat, NumBeta=NumBeta, NumGammaW=NumGammaW, NumGammaM=NumGammaM, 
+                                Xd=X,Zd=Z,pmfW=pmfW, pmfM=pmfM,pmfj=pmfj, gw=gw, gm=gm, n=n, 
+                                symmetric=symmetric, sampling=sampling, loglikfun=loglikfun)
       
-      dimnames(H) <- list(names(th_hat[1:NumBeta]),names(th_hat[1:NumBeta]))
-      dimnames(Geqfun) <- list(names(th_hat)[(NumBeta+1):(NumBeta+NumGamma)],names(th_hat[1:NumBeta]))
-      Hi <- try(ginv(-H))
-      if(inherits(Hi,"try-error")){
-        Hi <- -diag(1/diag(H))
-      }
-      V <- try(Hi - Hi %*% t(Geqfun) %*% ginv(Geqfun %*% Hi %*% t(Geqfun))%*% Geqfun %*% Hi)
-      if(inherits(V,"try-error")){
-        V <- Hi
-      }
-      if(all(is.na(diag(V)) | abs(diag(V))<1e-8)){
-        out$covar <- Hi
-      }else{
-        out$covar <- V
-      }
+      # out$covar = asym_var_out$covar
+      out$covar2 = asym_var_out$covar2
+      # out$outer_grad = asym_var_out$outer_grad
+      # out$outer_grad_2 = asym_var_out$outer_grad_2
+      # out$hess_CP = asym_var_out$hess_CP
+      
     }else{
-      out$covar <- diag(rep(NA,NumBeta))
+      out$covar <- diag(rep(NA,length(th_hat)))
     }
     
     out$control <- control

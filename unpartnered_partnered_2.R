@@ -262,6 +262,7 @@ source("rpm.model.matrix.R")
 source("choice_probability.R")
 source("check_CP.R")
 source("create_counterfactual_distri.R")
+source("asymptotic_var.R")
 
 ################## source some files for plotting data ################
 
@@ -469,6 +470,17 @@ print(kl_1)
 # print("KL-divergence (2): p = 2008 est. preference, q = 2008 observed")
 # print(kl_2)
 
+###### next counterfactual ---- using 2001 preferences with 2008 availability #####
+# compare counterfactual joint probabilities with observed
+pmfjc2001 = create_counterfactual_distri(ff, out2001$solution, processed_2008$mu, processed_2001$Xdata, processed_2001$Zdata, processed_2008$Xdata, processed_2008$Zdata, symmetric)
+print("counterfactual joint probabilities")
+print(pmfjc2001$pmfj_est)
+print("observed joint probabilities")
+print(pmfjc2001$pmfj_obs)
+# KL-divergence = sum(p*log(p/q))
+klc = sum(pmfjc2001$pmfj_est*log(pmfjc2001$pmfj_est/pmfjc2001$pmfj_obs), na.rm=T)
+print("KL-divergence: p = counterfactual 2008 with 2001 preference, q = 2008 observed")
+print(klc)
 
 ############### plot the data ####################
 
