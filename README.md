@@ -15,4 +15,6 @@ Some code that was used in generating the results for timing analysis (shown at 
 
 Known problems in this initial version:
 1) Model identification problem
-2) The Gamma values are sufficient statistics for the thetas. So the asymptotic standard error for the thetas are not meaningful. I plan to do bootstrapping to estimate the covariance matrix for the thetas instead. 
+2) The Gamma values are sufficient statistics for the thetas. So the asymptotic standard error for the thetas are not meaningful. I plan to do bootstrapping to estimate the covariance matrix for the thetas instead 
+3) Need to add the option to use sample weights
+4) I want to add a set of alternative specific constants so each matching type can have a different payoff in utility for pairing
