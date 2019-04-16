@@ -380,7 +380,6 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, theta_0=NULL, control){
       # out$outer_grad = outer_grad
       # out$outer_grad_2 = outer_grad_2
       # out$hess_CP = hess_CP
-      browser()
       
       asym_var_out = asympt_var(theta=th_hat, NumBeta=NumBeta, NumGammaW=NumGammaW, NumGammaM=NumGammaM, 
                                 Xd=X,Zd=Z,pmfW=pmfW, pmfM=pmfM,pmfj=pmfj, gw=gw, gm=gm, n=n, 

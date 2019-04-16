@@ -1,0 +1,259 @@
+> source("unpartnered_partnered_2.R")
+[1] "1996: 0.256974459724951 are paired"
+[1] "2001: 0.177334866487799 are paired"
+[1] "2004: 0.122551815934588 are paired"
+[1] "2008: 0.162917623055343 are paired"
+[1] "all: 0.177115099176899 are paired"
+eq values:
+[1] 2.269648e-07 2.461173e-07 4.001645e-07 1.962328e-07 1.875179e-07 2.417385e-07 5.100599e-07 2.548544e-07
+             b1.intercept b1nodematch.educlevel_t.1 b1nodematch.educlevel_t.2 b1nodematch.educlevel_t.3 b1nodematch.educlevel_t.4 
+                    -0.14                      0.42                      0.36                      0.19                      0.84 
+  b1absdiff.educlevel_t.1 b1greaterthan.educlevel_t              b2.intercept b2nodematch.educlevel_t.1 b2nodematch.educlevel_t.2 
+                     0.53                     -0.95                     -0.14                      0.42                      0.36 
+b2nodematch.educlevel_t.3 b2nodematch.educlevel_t.4   b2absdiff.educlevel_t.1 b2greaterthan.educlevel_t              ExpUtil.b1.1 
+                     0.19                      0.84                      0.53                     -0.99                      0.26 
+             ExpUtil.b1.2              ExpUtil.b1.3              ExpUtil.b1.4              ExpUtil.b2.1              ExpUtil.b2.2 
+                     0.35                      0.30                      0.40                      0.25                      0.37 
+             ExpUtil.b2.3              ExpUtil.b2.4 
+                     0.33                      0.50 
+start: 21.27 sec elapsed
+[1] "Coeff:"
+             b1.intercept b1nodematch.educlevel_t.1 b1nodematch.educlevel_t.2 b1nodematch.educlevel_t.3 b1nodematch.educlevel_t.4 
+               -0.1380281                 0.4182006                 0.3585742                 0.1948635                 0.8361262 
+  b1absdiff.educlevel_t.1 b1greaterthan.educlevel_t              b2.intercept b2nodematch.educlevel_t.1 b2nodematch.educlevel_t.2 
+                0.5339452                -0.9543812                -0.1380281                 0.4182006                 0.3585742 
+b2nodematch.educlevel_t.3 b2nodematch.educlevel_t.4   b2absdiff.educlevel_t.1 b2greaterthan.educlevel_t              ExpUtil.b1.1 
+                0.1948635                 0.8361262                 0.5339452                -0.9914114                 0.2552004 
+             ExpUtil.b1.2              ExpUtil.b1.3              ExpUtil.b1.4              ExpUtil.b2.1              ExpUtil.b2.2 
+                0.3526485                 0.2953432                 0.3986993                 0.2520751                 0.3654528 
+             ExpUtil.b2.3              ExpUtil.b2.4 
+                0.3337874                 0.4993887 
+[1] "equality:"
+[1] 2.269648e-07 2.461173e-07 4.001645e-07 1.962328e-07 1.875179e-07 2.417385e-07 5.100599e-07 2.548544e-07
+[1] "Likelihood ratio:"
+[1] 0.9780434
+[1] "Standard error:"
+ [1] 1.200647e-23 3.250272e-27 4.035353e-25 8.633773e-27 3.206791e-32 3.446896e-25 1.448959e-25 3.744919e-23 4.357607e-25 4.215926e-25
+[11] 3.853218e-25 1.909676e-26 3.295785e-25 3.109615e-26 1.397973e-03 7.981091e-04 7.372757e-04 1.058343e-03 1.321104e-03 7.928971e-04
+[21] 8.513727e-04 1.358606e-03
+[1] "estimated joint probabilities"
+            [,1]        [,2]        [,3]        [,4]      [,5]
+[1,] 0.010176348 0.011127759 0.003320545 0.001943772 0.0520540
+[2,] 0.011254032 0.048118405 0.022842023 0.004596123 0.1230837
+[3,] 0.004080375 0.026745008 0.031758884 0.014103966 0.1298288
+[4,] 0.002628551 0.005922162 0.014956834 0.043182840 0.0836349
+[5,] 0.055815286 0.125752597 0.109168547 0.063904797 0.0000000
+[1] "observed joint probabilities"
+             [,1]        [,2]        [,3]         [,4]       [,5]
+[1,] 0.0103283750 0.011675554 0.002694359 0.0007858546 0.05259613
+[2,] 0.0113387595 0.047824867 0.021330340 0.0057255122 0.12337917
+[3,] 0.0044905978 0.025933202 0.031770980 0.0157170923 0.12921695
+[4,] 0.0005613247 0.008195341 0.014931238 0.0436710637 0.08330059
+[5,] 0.0565253999 0.124894752 0.110244176 0.0628683694 0.00000000
+[1] "KL-divergence (1): p = 1996 est. preference, q = 1996 observed"
+[1] 0.003344734
+[1] "counterfactual joint probabilities"
+            [,1]        [,2]       [,3]        [,4]       [,5]
+[1,] 0.006510150 0.009254711 0.00330863 0.001588895 0.03986475
+[2,] 0.008061630 0.044810739 0.02548526 0.004206852 0.10554827
+[3,] 0.004090791 0.034858292 0.04959207 0.018067552 0.15581682
+[4,] 0.002210679 0.006475087 0.01959245 0.046405692 0.08420400
+[5,] 0.042367820 0.124095518 0.12906852 0.061982243 0.00000000
+[1] "observed joint probabilities"
+             [,1]       [,2]        [,3]         [,4]       [,5]
+[1,] 0.0060188727 0.00510074 0.002142311 0.0004080592 0.04320326
+[2,] 0.0051007396 0.01917878 0.011527672 0.0032644733 0.12323387
+[3,] 0.0040805917 0.01744453 0.028360112 0.0103034940 0.17174190
+[4,] 0.0007141035 0.00744708 0.015506248 0.0263198164 0.09278245
+[5,] 0.0450905381 0.14486100 0.143381790 0.0727875542 0.00000000
+[1] "KL-divergence: p = counterfactual 2008 with 1996 preference, q = 2008 observed"
+[1] 0.07885892
+start: 21.27 sec elapsed
+eq values:
+[1] 1.002935e-07 2.895875e-08 3.767065e-07 6.984118e-08 1.756396e-07 5.411558e-08 4.273806e-07 1.876288e-08
+             b1.intercept b1nodematch.educlevel_t.1 b1nodematch.educlevel_t.2 b1nodematch.educlevel_t.3 b1nodematch.educlevel_t.4 
+                    -0.37                      0.41                      0.30                      0.10                      0.78 
+  b1absdiff.educlevel_t.1 b1greaterthan.educlevel_t              b2.intercept b2nodematch.educlevel_t.1 b2nodematch.educlevel_t.2 
+                     0.47                     -1.12                     -0.37                      0.41                      0.30 
+b2nodematch.educlevel_t.3 b2nodematch.educlevel_t.4   b2absdiff.educlevel_t.1 b2greaterthan.educlevel_t              ExpUtil.b1.1 
+                     0.10                      0.78                      0.47                     -0.83                      0.16 
+             ExpUtil.b1.2              ExpUtil.b1.3              ExpUtil.b1.4              ExpUtil.b2.1              ExpUtil.b2.2 
+                     0.21                      0.19                      0.27                      0.18                      0.23 
+             ExpUtil.b2.3              ExpUtil.b2.4 
+                     0.20                      0.30 
+eq values:
+[1] 3.433556e-07 1.160057e-07 2.316153e-07 3.299112e-07 4.606361e-07 1.582684e-07 2.546521e-07 2.853595e-07
+             b1.intercept b1nodematch.educlevel_t.1 b1nodematch.educlevel_t.2 b1nodematch.educlevel_t.3 b1nodematch.educlevel_t.4 
+                    -0.55                      0.32                      0.14                      0.05                      0.72 
+  b1absdiff.educlevel_t.1 b1greaterthan.educlevel_t              b2.intercept b2nodematch.educlevel_t.1 b2nodematch.educlevel_t.2 
+                     0.37                     -0.93                     -0.55                      0.32                      0.14 
+b2nodematch.educlevel_t.3 b2nodematch.educlevel_t.4   b2absdiff.educlevel_t.1 b2greaterthan.educlevel_t              ExpUtil.b1.1 
+                     0.05                      0.72                      0.37                     -0.86                      0.11 
+             ExpUtil.b1.2              ExpUtil.b1.3              ExpUtil.b1.4              ExpUtil.b2.1              ExpUtil.b2.2 
+                     0.13                      0.13                      0.17                      0.11                      0.14 
+             ExpUtil.b2.3              ExpUtil.b2.4 
+                     0.14                      0.21 
+eq values:
+[1] 2.152318e-07 7.977562e-08 2.492543e-07 1.673501e-07 1.389467e-07 6.978655e-08 3.147722e-07 2.271478e-07
+             b1.intercept b1nodematch.educlevel_t.1 b1nodematch.educlevel_t.2 b1nodematch.educlevel_t.3 b1nodematch.educlevel_t.4 
+                    -0.36                      0.58                      0.07                      0.09                      0.67 
+  b1absdiff.educlevel_t.1 b1greaterthan.educlevel_t              b2.intercept b2nodematch.educlevel_t.1 b2nodematch.educlevel_t.2 
+                     0.35                     -0.99                     -0.36                      0.58                      0.07 
+b2nodematch.educlevel_t.3 b2nodematch.educlevel_t.4   b2absdiff.educlevel_t.1 b2greaterthan.educlevel_t              ExpUtil.b1.1 
+                     0.09                      0.67                      0.35                     -0.78                      0.16 
+             ExpUtil.b1.2              ExpUtil.b1.3              ExpUtil.b1.4              ExpUtil.b2.1              ExpUtil.b2.2 
+                     0.16                      0.18                      0.24                      0.18                      0.18 
+             ExpUtil.b2.3              ExpUtil.b2.4 
+                     0.19                      0.27 
+eq values:
+[1] 2.134511e-07 6.308983e-08 5.335688e-07 3.014257e-07 3.844375e-07 1.198955e-07 5.970379e-07 2.038722e-07
+             b1.intercept b1nodematch.educlevel_t.1 b1nodematch.educlevel_t.2 b1nodematch.educlevel_t.3 b1nodematch.educlevel_t.4 
+                    -0.35                      0.42                      0.25                      0.10                      0.77 
+  b1absdiff.educlevel_t.1 b1greaterthan.educlevel_t              b2.intercept b2nodematch.educlevel_t.1 b2nodematch.educlevel_t.2 
+                     0.44                     -1.00                     -0.35                      0.42                      0.25 
+b2nodematch.educlevel_t.3 b2nodematch.educlevel_t.4   b2absdiff.educlevel_t.1 b2greaterthan.educlevel_t              ExpUtil.b1.1 
+                     0.10                      0.77                      0.44                     -0.88                      0.16 
+             ExpUtil.b1.2              ExpUtil.b1.3              ExpUtil.b1.4              ExpUtil.b2.1              ExpUtil.b2.2 
+                     0.21                      0.19                      0.26                      0.17                      0.22 
+             ExpUtil.b2.3              ExpUtil.b2.4 
+                     0.21                      0.31 
+
+
+|                          |       1996|       2001|       2004|       2008|
+|:-------------------------|----------:|----------:|----------:|----------:|
+|b1.intercept              | -0.1380281| -0.3699242| -0.5468226| -0.3635151|
+|b1nodematch.educlevel_t.1 |  0.4182006|  0.4098904|  0.3218872|  0.5763640|
+|b1nodematch.educlevel_t.2 |  0.3585742|  0.2959785|  0.1409342|  0.0660157|
+|b1nodematch.educlevel_t.3 |  0.1948635|  0.0970594|  0.0548509|  0.0891178|
+|b1nodematch.educlevel_t.4 |  0.8361262|  0.7812943|  0.7244675|  0.6732689|
+|b1absdiff.educlevel_t.1   |  0.5339452|  0.4745812|  0.3710782|  0.3475556|
+|b1greaterthan.educlevel_t | -0.9543812| -1.1244089| -0.9261916| -0.9852592|
+|b2.intercept              | -0.1380281| -0.3699242| -0.5468226| -0.3635151|
+|b2nodematch.educlevel_t.1 |  0.4182006|  0.4098904|  0.3218872|  0.5763640|
+|b2nodematch.educlevel_t.2 |  0.3585742|  0.2959785|  0.1409342|  0.0660157|
+|b2nodematch.educlevel_t.3 |  0.1948635|  0.0970594|  0.0548509|  0.0891178|
+|b2nodematch.educlevel_t.4 |  0.8361262|  0.7812943|  0.7244675|  0.6732689|
+|b2absdiff.educlevel_t.1   |  0.5339452|  0.4745812|  0.3710782|  0.3475556|
+|b2greaterthan.educlevel_t | -0.9914114| -0.8297378| -0.8627708| -0.7830223|
+|ExpUtil.b1.1              |  0.2552004|  0.1560164|  0.1066725|  0.1600923|
+|ExpUtil.b1.2              |  0.3526485|  0.2114928|  0.1310650|  0.1645702|
+|ExpUtil.b1.3              |  0.2953432|  0.1854011|  0.1251825|  0.1834124|
+|ExpUtil.b1.4              |  0.3986993|  0.2711795|  0.1700823|  0.2417666|
+|ExpUtil.b2.1              |  0.2520751|  0.1845023|  0.1115710|  0.1789164|
+|ExpUtil.b2.2              |  0.3654528|  0.2335358|  0.1388482|  0.1796657|
+|ExpUtil.b2.3              |  0.3337874|  0.1954376|  0.1391444|  0.1926198|
+|ExpUtil.b2.4              |  0.4993887|  0.2956264|  0.2087425|  0.2678048|
+[1] "estimated joint probabilities"
+            [,1]        [,2]        [,3]        [,4]       [,5]
+[1,] 0.009086577 0.010095144 0.003409247 0.001722507 0.04872994
+[2,] 0.009694262 0.042112815 0.022624650 0.003929213 0.11115791
+[3,] 0.004404917 0.029334377 0.039422450 0.015110761 0.14694073
+[4,] 0.002457889 0.005626294 0.016081484 0.040074151 0.08199109
+[5,] 0.053237758 0.121865287 0.119730510 0.060493325 0.00000000
+[1] "observed joint probabilities"
+            [,1]        [,2]        [,3]         [,4]       [,5]
+[1,] 0.007313453 0.006665767 0.002401835 0.0004587775 0.05274592
+[2,] 0.007556335 0.027094859 0.013061665 0.0037781676 0.12461206
+[3,] 0.004048037 0.019241668 0.025475644 0.0110646337 0.16042369
+[4,] 0.000593712 0.006692754 0.012791796 0.0288759951 0.09020375
+[5,] 0.056901903 0.136553771 0.132829578 0.0686142221 0.00000000
+[1] "KL-divergence: p = 1996 est. preference, q = 1996 observed"
+[1] 0.02244957
+[1] "estimated 2001 joint probabilities"
+            [,1]        [,2]        [,3]        [,4]       [,5]
+[1,] 0.008769315 0.006518461 0.002290859 0.001354110 0.06067545
+[2,] 0.009215587 0.029720449 0.012529466 0.002866634 0.12844911
+[3,] 0.004106476 0.021330428 0.020869313 0.008526103 0.14787456
+[4,] 0.002525935 0.005078512 0.011913020 0.029815054 0.09095915
+[5,] 0.066712691 0.134129002 0.121784516 0.071985948 0.00000000
+[1] "observed 2001 joint probabilities"
+             [,1]        [,2]        [,3]         [,4]       [,5]
+[1,] 0.0089434010 0.006260381 0.002555257 0.0006388144 0.06094289
+[2,] 0.0099655040 0.029513223 0.009965504 0.0039606490 0.12891274
+[3,] 0.0035773604 0.021080874 0.020825348 0.0106043184 0.14724671
+[4,] 0.0007665772 0.006771432 0.012009710 0.0298965121 0.09090328
+[5,] 0.0673949150 0.133639964 0.122907883 0.0707167497 0.00000000
+[1] "KL-divergence: p = 2001 est. preference, q = 2001 observed"
+[1] 0.002590895
+[1] "estimated 2004 joint probabilities"
+            [,1]        [,2]        [,3]        [,4]       [,5]
+[1,] 0.004285849 0.004332987 0.002201014 0.001002155 0.05541246
+[2,] 0.004452988 0.015406759 0.010316248 0.002236246 0.12364938
+[3,] 0.003193737 0.015519479 0.020847413 0.007076132 0.18627474
+[4,] 0.001599328 0.003699995 0.008292117 0.018139455 0.09328081
+[5,] 0.060642330 0.140294134 0.149688850 0.068155607 0.00000000
+[1] "observed 2004joint probabilities"
+             [,1]        [,2]        [,3]         [,4]       [,5]
+[1,] 0.0047537555 0.004183305 0.002281803 9.507511e-05 0.05566648
+[2,] 0.0048488306 0.015116942 0.009792736 2.471953e-03 0.12374025
+[3,] 0.0039931546 0.013880966 0.020916524 8.176459e-03 0.18610953
+[4,] 0.0003803004 0.004658680 0.009032135 1.796920e-02 0.09312607
+[5,] 0.0604202320 0.140853774 0.149505609 6.802624e-02 0.00000000
+[1] "KL-divergence: p = 2004 est. preference, q = 2004 observed"
+[1] 0.003001873
+[1] "estimated 2008 joint probabilities"
+            [,1]       [,2]        [,3]        [,4]       [,5]
+[1,] 0.005941571 0.00448083 0.002247019 0.001141119 0.04313300
+[2,] 0.004883816 0.01942538 0.012798243 0.003243334 0.12259433
+[3,] 0.003390542 0.02168914 0.028441958 0.009042058 0.17055446
+[4,] 0.001885485 0.00601885 0.012120695 0.025835984 0.09484559
+[5,] 0.044996991 0.14363948 0.144346050 0.073304245 0.00000000
+[1] "observed 2008 joint probabilities"
+             [,1]       [,2]        [,3]         [,4]       [,5]
+[1,] 0.0060188727 0.00510074 0.002142311 0.0004080592 0.04320326
+[2,] 0.0051007396 0.01917878 0.011527672 0.0032644733 0.12323387
+[3,] 0.0040805917 0.01744453 0.028360112 0.0103034940 0.17174190
+[4,] 0.0007141035 0.00744708 0.015506248 0.0263198164 0.09278245
+[5,] 0.0450905381 0.14486100 0.143381790 0.0727875542 0.00000000
+[1] "KL-divergence: p = 2008 est. preference, q = 2008 observed"
+[1] 0.002427604
+[1] "counterfactual joint probabilities"
+            [,1]        [,2]       [,3]        [,4]       [,5]
+[1,] 0.005259621 0.005964446 0.00242021 0.001205521 0.04328507
+[2,] 0.007108382 0.034973518 0.01702339 0.003282100 0.11784610
+[3,] 0.003975332 0.031502126 0.03558591 0.012251422 0.17026833
+[4,] 0.002163165 0.006634989 0.01797029 0.037899629 0.09265102
+[5,] 0.044784794 0.137366565 0.14400581 0.071730148 0.00000000
+[1] "observed joint probabilities"
+             [,1]       [,2]        [,3]         [,4]       [,5]
+[1,] 0.0060188727 0.00510074 0.002142311 0.0004080592 0.04320326
+[2,] 0.0051007396 0.01917878 0.011527672 0.0032644733 0.12323387
+[3,] 0.0040805917 0.01744453 0.028360112 0.0103034940 0.17174190
+[4,] 0.0007141035 0.00744708 0.015506248 0.0263198164 0.09278245
+[5,] 0.0450905381 0.14486100 0.143381790 0.0727875542 0.00000000
+[1] "KL-divergence: p = counterfactual 2008 with 2001 preference, q = 2008 observed"
+[1] 0.06385213
+Warning messages:
+1: In read.dta13(data_file) : 
+  wpfinwgt_t:
+  Factor codes of type double or float detected - no labels assigned.
+  Set option nonint.factors to TRUE to assign labels anyway.
+
+2: In read.dta13(data_file) : 
+  tage_t:
+  Missing factor labels - no labels assigned.
+  Set option generate.factors=T to generate labels.
+3: In read.dta13(data_file) : 
+  s_wpfinwgt_t:
+  Factor codes of type double or float detected - no labels assigned.
+  Set option nonint.factors to TRUE to assign labels anyway.
+
+4: In read.dta13(data_file) : 
+  s_tage_t:
+  Missing factor labels - no labels assigned.
+  Set option generate.factors=T to generate labels.
+5: In read.dta13(data_file) : 
+  p_wpfinwgt_t:
+  Factor codes of type double or float detected - no labels assigned.
+  Set option nonint.factors to TRUE to assign labels anyway.
+
+6: In read.dta13(data_file) : 
+  p_tage_t:
+  Missing factor labels - no labels assigned.
+  Set option generate.factors=T to generate labels.
+7: In read.dta13(data_file) : 
+  marrcohabt_rev:
+  Factor codes of type double or float detected - no labels assigned.
+  Set option nonint.factors to TRUE to assign labels anyway.
+
+> 
