@@ -6,7 +6,7 @@ library(ggplot2)
 
 ###################### files and libraries for the data ######################
 
-#setwd("C://UCLA//thesis_ideas//homeless_poverty//PAA_annual_meeting_2018//poster//unpartnered_partnered")
+#setwd("C:\\UCLA\\research_projects\\PAA_2018")
 data_file = "C:\\UCLA\\thesis_ideas\\homeless_poverty\\Unpartnered&NewPartnered_Final\\Unpartnered&NewPartnered_Final.dta"
 
 library(Matrix)
@@ -29,7 +29,7 @@ complete_cases_only = TRUE
 ###################### sanity check for the data #####################
 
 idx = which(!is.na(data$allrespartid_w))
-paired = data[idx,c("pid", "spanel_all", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
+paired = data[idx,c("pid", "epppnum", "spanel_all", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
 
 # sanity check
 oddidx = seq(1,nrow(paired),by=2)
@@ -47,9 +47,9 @@ process_data = function(data, complete_cases_only) {
 
   # separate the couples from the singles
   idx = which(!is.na(data$allrespartid_w))
-  paired = data[idx,c("pid", "spanel_all", "wavetime", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
+  paired = data[idx,c("pid", "epppnum", "spanel_all", "wavetime", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
   paired$pair_id = rep(1:(nrow(paired)/2), each=2)
-  single = data[-idx,c("pid", "spanel_all", "wavetime", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
+  single = data[-idx,c("pid", "epppnum", "spanel_all", "wavetime", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
   single$pair_id = rep(0,nrow(single))
   
   # order the partners at the same index
@@ -100,6 +100,16 @@ process_data = function(data, complete_cases_only) {
   all(Xdata$female_t == "Female")
   all(Zdata$female_t == "Male")
   
+  # get the weight for the pair (if both partners are from the same wave, just use the one with lower epppnum)
+  pair_w_idx = apply(cbind(Xdata$epppnum[1:nrow(paired_females)], Zdata$epppnum[1:nrow(paired_males)]), 1, which.min)
+  pair_w = cbind(Xdata$wpfinwgt_t[1:nrow(paired_females)], Zdata$wpfinwgt_t[1:nrow(paired_males)])
+  pair_w = pair_w[cbind(1:length(pair_w_idx),pair_w_idx)]
+  # get the weight for all females and males
+  X_w=Xdata$wpfinwgt_t
+  Z_w=Zdata$wpfinwgt_t
+  # # sanity check
+  # pair_min_epppnum = apply(cbind(Xdata$epppnum[nrow(paired_females)], Zdata$epppnum[nrow(paired_males)]), 1, min)
+  # all(pair_min_epppnum < 200)
   
   # only keep columns that are attributes
   Xdata = Xdata[,c("tage_t", "race_t", "educlevel_t")]
@@ -119,7 +129,8 @@ process_data = function(data, complete_cases_only) {
   
   return(list(Xdata=Xdata, Zdata=Zdata, mu=mu, 
               paired_females=paired_females, paired_males=paired_males,
-              single_females=single_females, single_males=single_males))
+              single_females=single_females, single_males=single_males,
+              X_w=X_w, Z_w=Z_w, pair_w=pair_w))
 }
 
 # process_data = function(data, use_last_wave_only, complete_cases_only) {
@@ -242,7 +253,10 @@ processed_all = list(Xdata=rbind(processed_1996$Xdata, processed_2001$Xdata, pro
                            paired_females=rbind(processed_1996$paired_females, processed_2001$paired_females, processed_2004$paired_females, processed_2008$paired_females),
                            paired_males=rbind(processed_1996$paired_males, processed_2001$paired_males, processed_2004$paired_males, processed_2008$paired_males),
                            single_females=rbind(processed_1996$single_females, processed_2001$single_females, processed_2004$single_females, processed_2008$single_females),
-                           single_males=rbind(processed_1996$single_males, processed_2001$single_males, processed_2004$single_males, processed_2008$single_males))
+                           single_males=rbind(processed_1996$single_males, processed_2001$single_males, processed_2004$single_males, processed_2008$single_males),
+                           X_w = c(processed_1996$X_w, processed_2001$X_w, processed_2004$X_w, processed_2008$X_w),
+                           Z_w = c(processed_1996$Z_w, processed_2001$Z_w, processed_2004$Z_w, processed_2008$Z_w),
+                           pair_w = c(processed_1996$pair_w, processed_2001$pair_w, processed_2004$pair_w, processed_2008$pair_w))
 
 print(paste0("1996: ", nrow(processed_1996$paired_females)*2/(nrow(processed_1996$single_females)+nrow(processed_1996$single_males)+nrow(processed_1996$paired_females)*2), " are paired"))
 print(paste0("2001: ", nrow(processed_2001$paired_females)*2/(nrow(processed_2001$single_females)+nrow(processed_2001$single_males)+nrow(processed_2001$paired_females)*2), " are paired"))
@@ -274,15 +288,15 @@ source("edu_hypo_hyper_same.R")
 # example: ff = ~ b1cov("f1") + b2cov("f1") + b1absdiff("f1",1) + b2absdiff("f1",1)
 
 # takes a few seconds
-# ff = ~ b1nodematch("educlevel_t") + b2nodematch("educlevel_t")
+ff = ~ b1nodematch("educlevel_t") + b2nodematch("educlevel_t")
 
 # takes > 1 min
 # ff = ~ b1homophily("educlevel_t") + b2homophily("educlevel_t") + b1homophily("race_t") + b2homophily("race_t")
 # ff = ~ b1nodematch("educlevel_t") + b2nodematch("educlevel_t") + b1homophily("race_t") + b2homophily("race_t") # takes a a couple minutes
 
-ff = ~ b1nodematch("educlevel_t") + b2nodematch("educlevel_t") +
-  b1absdiff("educlevel_t",1) + b2absdiff("educlevel_t",1) +
-  b1greaterthan("educlevel_t") + b2greaterthan("educlevel_t")
+# ff = ~ b1nodematch("educlevel_t") + b2nodematch("educlevel_t") +
+#   b1absdiff("educlevel_t",1) + b2absdiff("educlevel_t",1) +
+#   b1greaterthan("educlevel_t") + b2greaterthan("educlevel_t")
 
 # interactions
 # ff = ~ b1homophily("educlevel_t","race_t") + b2homophily("educlevel_t","race_t")
@@ -322,9 +336,12 @@ tic("start")
 Xdata = processed_1996$Xdata
 Zdata = processed_1996$Zdata
 mu = processed_1996$mu
+X_w = processed_1996$X_w
+Z_w = processed_1996$Z_w
+pair_w = processed_1996$pair_w
 
 # Compute MLE based on an observed matching
-out <- fitrpm_R_CP(ff, mu, Xdata, Zdata, theta_0, control=control)
+out <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
 toc(log=TRUE, quiet=FALSE)
 
@@ -348,7 +365,7 @@ kable(dff)
 # best_theta = find_best_theta(beta_med, beta_sim, numBeta, numGamma)
 
 # compare estimated joint probabilities with truth
-pmfj = check_CP_latent(ff, out$solution, mu, Xdata, Zdata, symmetric)
+pmfj = check_CP_latent(ff, out$solution, mu, Xdata, Zdata, X_w, Z_w, pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated joint probabilities")
 print(pmfj$pmfj_est)
 print("observed joint probabilities")
@@ -363,13 +380,15 @@ print(kl_1)
 # print(kl_2)
 
 # compare counterfactual joint probabilities with observed
-pmfjc = create_counterfactual_distri(ff, out$solution, processed_2008$mu, Xdata, Zdata, processed_2008$Xdata, processed_2008$Zdata, symmetric)
+pmfjc = create_counterfactual_distri(ff, out$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
+                                     processed_2008$X_w, processed_2008$Z_w, processed_2008$pair_w, control)
+
 print("counterfactual joint probabilities")
-print(pmfjc$pmfj_est)
+print(pmfjc$pmfj_cf)
 print("observed joint probabilities")
 print(pmfjc$pmfj_obs)
 # KL-divergence = sum(p*log(p/q))
-klc = sum(pmfjc$pmfj_est*log(pmfjc$pmfj_est/pmfjc$pmfj_obs), na.rm=T)
+klc = sum(pmfjc$pmfj_cf*log(pmfjc$pmfj_cf/pmfjc$pmfj_obs), na.rm=T)
 print("KL-divergence: p = counterfactual 2008 with 1996 preference, q = 2008 observed")
 print(klc)
 
@@ -384,7 +403,10 @@ writeLines(unlist(log.txt))
 Xdata = processed_2001$Xdata
 Zdata = processed_2001$Zdata
 mu = processed_2001$mu
-out2001 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, theta_0, control=control)
+X_w = processed_2001$X_w
+Z_w = processed_2001$Z_w
+pair_w = processed_2001$pair_w
+out2001 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
 dff2001 = data.frame(out2001$solution)
 
@@ -393,7 +415,10 @@ dff2001 = data.frame(out2001$solution)
 Xdata = processed_2004$Xdata
 Zdata = processed_2004$Zdata
 mu = processed_2004$mu
-out2004 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, theta_0, control=control)
+X_w = processed_2004$X_w
+Z_w = processed_2004$Z_w
+pair_w = processed_2004$pair_w
+out2004 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
 dff2004 = data.frame(out2004$solution)
 
@@ -402,18 +427,24 @@ dff2004 = data.frame(out2004$solution)
 Xdata = processed_2008$Xdata
 Zdata = processed_2008$Zdata
 mu = processed_2008$mu
-out2008 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, theta_0, control=control)
+X_w = processed_2008$X_w
+Z_w = processed_2008$Z_w
+pair_w = processed_2008$pair_w
+out2008 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
 dff2008 = data.frame(out2008$solution)
 
-############# fit all data ######################
-
-Xdata = processed_all$Xdata
-Zdata = processed_all$Zdata
-mu = processed_all$mu
-outall <- fitrpm_R_CP(ff, mu, Xdata, Zdata, theta_0, control=control)
-
-dffall = data.frame(outall$solution)
+# ############# fit all data ######################
+# 
+# Xdata = processed_all$Xdata
+# Zdata = processed_all$Zdata
+# mu = processed_all$mu
+# X_w = processed_all$X_w
+# Z_w = processed_all$Z_w
+# pair_w = processed_all$pair_w
+# outall <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
+# 
+# dffall = data.frame(outall$solution)
 
 
 ############### combine coeffs from all panels ##################
@@ -421,7 +452,7 @@ dffall = data.frame(outall$solution)
 print(kable(cbind(dff, dff2001, dff2004, dff2008), col.names = c(1996, 2001, 2004, 2008)))
 
 ####### compare estimated joint probabilities with truth ########
-pmfj = check_CP_latent(ff, out$solution, mu, Xdata, Zdata, symmetric)
+pmfj = check_CP_latent(ff, out$solution, mu, Xdata, Zdata, X_w, Z_w, pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated joint probabilities")
 print(pmfj$pmfj_est)
 print("observed joint probabilities")
@@ -434,7 +465,8 @@ print(kl_1)
 # print(kl_2)
 
 
-pmfj2001 = check_CP_latent(ff, out2001$solution, processed_2001$mu, processed_2001$Xdata, processed_2001$Zdata, symmetric)
+pmfj2001 = check_CP_latent(ff, out2001$solution, processed_2001$mu, processed_2001$Xdata, processed_2001$Zdata, 
+                           processed_2001$X_w, processed_2001$Z_w, processed_2001$pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated 2001 joint probabilities")
 print(pmfj2001$pmfj_est)
 print("observed 2001 joint probabilities")
@@ -446,7 +478,8 @@ print(kl_1)
 # print("KL-divergence (2): p = 2001 est. preference, q = 2001 observed")
 # print(kl_2)
 
-pmfj2004 = check_CP_latent(ff, out2004$solution, processed_2004$mu, processed_2004$Xdata, processed_2004$Zdata, symmetric)
+pmfj2004 = check_CP_latent(ff, out2004$solution, processed_2004$mu, processed_2004$Xdata, processed_2004$Zdata, 
+                           processed_2004$X_w, processed_2004$Z_w, processed_2004$pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated 2004 joint probabilities")
 print(pmfj2004$pmfj_est)
 print("observed 2004joint probabilities")
@@ -458,7 +491,8 @@ print(kl_1)
 # print("KL-divergence (2): p = 2004 est. preference, q = 2004 observed")
 # print(kl_2)
 
-pmfj2008 = check_CP_latent(ff, out2008$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, symmetric)
+pmfj2008 = check_CP_latent(ff, out2008$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
+                           processed_2008$X_w, processed_2008$Z_w, processed_2008$pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated 2008 joint probabilities")
 print(pmfj2008$pmfj_est)
 print("observed 2008 joint probabilities")
@@ -472,13 +506,15 @@ print(kl_1)
 
 ###### next counterfactual ---- using 2001 preferences with 2008 availability #####
 # compare counterfactual joint probabilities with observed
-pmfjc2001 = create_counterfactual_distri(ff, out2001$solution, processed_2008$mu, processed_2001$Xdata, processed_2001$Zdata, processed_2008$Xdata, processed_2008$Zdata, symmetric)
+pmfjc2001 = create_counterfactual_distri(ff, out2001$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
+                             processed_2008$X_w, processed_2008$Z_w, processed_2008$pair_w, control)
+
 print("counterfactual joint probabilities")
-print(pmfjc2001$pmfj_est)
+print(pmfjc2001$pmfj_cf)
 print("observed joint probabilities")
 print(pmfjc2001$pmfj_obs)
 # KL-divergence = sum(p*log(p/q))
-klc = sum(pmfjc2001$pmfj_est*log(pmfjc2001$pmfj_est/pmfjc2001$pmfj_obs), na.rm=T)
+klc = sum(pmfjc2001$pmfj_cf*log(pmfjc2001$pmfj_cf/pmfjc2001$pmfj_obs), na.rm=T)
 print("KL-divergence: p = counterfactual 2008 with 2001 preference, q = 2008 observed")
 print(klc)
 

@@ -27,7 +27,7 @@
 #' @keywords models
 #' @examples
 #' 
-check_CP_latent = function(ff, theta, mu, X, Z, symmetric){
+check_CP_latent = function(ff, theta, mu, X, Z, X_w, Z_w, pair_w, sampling, symmetric){
   
   n=nrow(X)+nrow(Z)
   
@@ -66,32 +66,67 @@ check_CP_latent = function(ff, theta, mu, X, Z, symmetric){
     Ztype[apply(Zdata[,model_vars], 1, function(x) identical(x, Zu[i,]))] <- i
   }
   
-  # order the data by pair
-  # Xtype_paired = Xtype[unlist(apply(mu, 2, function(x) which(x>0)))] # for regular matrix
-  Xtype_paired = Xtype[mu@i+1] # for sparse matrix
-  Ztype_paired = Ztype[as.logical(colSums(mu))]
-  
-  # Xtype_single = table(Xtype[!rowSums(mu)])
-  # Ztype_single = table(Ztype[!colSums(mu)])
-  Xtype_single = table(factor(Xtype[!rowSums(mu)], 1:nrow(Xu))) # account for missing types
-  Ztype_single = table(factor(Ztype[!colSums(mu)], 1:nrow(Zu))) # account for missing types
-  
-  pmfW=table(Xtype)/nrow(mu)
-  pmfM=table(Ztype)/ncol(mu)
+  # pmfW=table(Xtype)/nrow(mu)
+  # pmfM=table(Ztype)/ncol(mu)
+  pmfW = wtd.table(Xtype, weights=X_w)
+  pmfW = pmfW/sum(pmfW)
+  pmfM = wtd.table(Ztype, weights=Z_w)
+  pmfM = pmfM/sum(pmfM)
   
   num_Xu = nrow(Xu)
   num_Zu = nrow(Zu)
-  pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
-  pmfj[1:num_Xu,1:num_Zu] = unclass(table(Xtype_paired,Ztype_paired)) *2
-  if (length(Xtype_single) > 0) {
-    pmfj[1:num_Xu,1+num_Zu] = Xtype_single
-  } 
-  if (length(Ztype_single) > 0) {
-    pmfj[1+num_Xu,1:num_Zu] = Ztype_single
+  
+  # order the data by pair (this code may be application dependent)
+  Xtype_paired = Xtype[unlist(apply(mu, 2, function(x) which(x>0)))] 
+  Ztype_paired = Ztype[unlist(apply(mu, 1, function(x) which(x>0)))]
+  Xtype_paired = factor(Xtype_paired, 1:num_Xu) # account for missing types
+  Ztype_paired = factor(Ztype_paired, 1:num_Zu) # account for missing types
+  # Xtype_paired = Xtype[mu@i+1] # for sparse matrix
+  # Ztype_paired = Ztype[as.logical(colSums(mu))]
+  
+  # Xtype_single = table(Xtype[!rowSums(mu)])
+  # Ztype_single = table(Ztype[!colSums(mu)])
+  # Xtype_single = table(factor(Xtype[!rowSums(mu)], 1:nrow(Xu))) # account for missing types
+  # Ztype_single = table(factor(Ztype[!colSums(mu)], 1:nrow(Zu))) # account for missing types
+  Xtype_single = wtd.table(factor(Xtype[!rowSums(mu)], 1:num_Xu), weights = X_w[-(1:length(Xtype_paired))]) # account for missing types
+  Ztype_single = wtd.table(factor(Ztype[!colSums(mu)], 1:num_Zu), weights = Z_w[-(1:length(Ztype_paired))]) # account for missing types
+  
+  if (sampling == "COUPLE") { 
+    
+    pmfj = matrix(0,nrow=num_Xu, ncol=num_Zu) # women (X) indexed by row, men (Z) indexed by column
+    pmfj = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w))
+    pmfj = pmfj/sum(pmfj)
+    
+  } else if (sampling == "HOUSEHOLD") {
+    
+    pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
+    pmfj[1:num_Xu,1:num_Zu] = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w))
+    
+    if (length(Xtype_single) > 0) {
+      pmfj[1:num_Xu,1+num_Zu] = Xtype_single
+    }
+    if (length(Ztype_single) > 0) {
+      pmfj[1+num_Xu,1:num_Zu] = Ztype_single
+    }
+
+    pmfj = pmfj/sum(pmfj)
+    
+  } else { # assume "INDIV"
+    
+    pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
+    pmfj[1:num_Xu,1:num_Zu] = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w)) *2
+    
+    if (length(Xtype_single) > 0) {
+      pmfj[1:num_Xu,1+num_Zu] = Xtype_single
+    }
+    if (length(Ztype_single) > 0) {
+      pmfj[1+num_Xu,1:num_Zu] = Ztype_single
+    }
+    
+    pmfj = pmfj/sum(pmfj)
   }
   
   
-  pmfj <- pmfj / (nrow(Xdata) + nrow(Zdata)) # original code only divide by nrow(Xdata)?
   
   modelmat <- rpm.model.matrix(model.terms.names, model.terms.coef.names, Xu, Zu)
   

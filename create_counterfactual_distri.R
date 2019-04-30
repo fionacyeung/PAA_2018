@@ -7,20 +7,20 @@
 #' ~ <model terms>}. For the details on the possible \code{<model terms>}, see
 #' \code{\link{rpm-terms}}.
 #' @param theta The estimated parameters.
-#' @param mu The NEW observed matching matrix, where 1 represent a pairing, 0 otherwise. 
+#' @param mu_new The hypothetical observed matching matrix, where 1 represent a pairing, 0 otherwise. 
 #' Each row is a woman, each column is a man. The order of the rows (columns)
 #' needs to be the same as in \code{X} (\code{Z}). 
-#' @param X Feature matrix for women. Each row is a woman, each column is a feature. 
-#' The number of column is assumed to be the same as in \code{Zdata}. 
-#' @param Z Feature matrix for men. Each row is a man, each column is a feature. 
-#' The number of column is assumed to be the same as in \code{Xdata}.
-#' @param Xnew Hypothetical feature matrix for women. Each row is a woman, each column is a feature. 
-#' The number of column is assumed to be the same as in \code{Zdata}. 
-#' @param Znew Hypothetical feature matrix for men. Each row is a man, each column is a feature. 
-#' The number of column is assumed to be the same as in \code{Xdata}.
-
-#' @param symmetric If set to \code{TRUE}, the same utility coefficients are to be used 
-#' for both the women's and men's sides; otherwise, separate estimates need to be provided for each side. 
+#' @param X_new Hypothetical feature matrix for women. Each row is a woman, each column is a feature. 
+#' The number of column is assumed to be the same as in \code{Z_new}. 
+#' @param Z_new Hypothetical feature matrix for men. Each row is a man, each column is a feature. 
+#' The number of column is assumed to be the same as in \code{X_new}.
+#' @param X_w_new The hypothetical sampling weight of each woman in the sample. The length of this vector is 
+#' the same as the number of row of \code{X_new}.
+#' @param Z_w_new The hypothetical sampling weight of each woman in the sample. The length of this vector is
+#' the same as the number of row of \code{Z_new}.
+#' @param pair_w_new The hypothetical sampling weight of each pair in the sample. The length of this vector is
+#' the same as the number of pairs in \code{mu_new}.
+#' @param control A list of control parameters for algorithm tuning.
 #' @return This function returns a list consisting of the following elements: 
 #' \item{pmfj_est}{The reconstructed joint density matrix based on the estimated parameters.}
 #' \item{pmfj_obs}{The observed joint density matrix based on the new data \code{X} and \code{Z}.}
@@ -31,12 +31,14 @@
 #' @keywords models
 #' @examples
 #' 
-create_counterfactual_distri = function(ff, theta, mu, X, Z, Xnew, Znew, symmetric){
+create_counterfactual_distri = function(ff, theta, mu_new, X_new, Z_new, X_w_new, Z_w_new, pair_w_new, control){
   
-  n=nrow(X)+nrow(Z)
+  symmetric = control[["symmetric"]]
+  sampling = control[["sampling_protocol"]]
   
-  Xdata <- cbind(1, X)
-  Zdata <- cbind(1, Z)
+  n=nrow(X_new)+nrow(Z_new)
+  Xdata <- cbind(1, X_new)
+  Zdata <- cbind(1, Z_new)
   colnames(Xdata)[1] <- "Int"
   colnames(Zdata)[1] <- "Int"
   
@@ -54,7 +56,7 @@ create_counterfactual_distri = function(ff, theta, mu, X, Z, Xnew, Znew, symmetr
   # model_vars <- c("Int", unlist(unique(lapply(model.terms.coef.names, '[[', 1))))
   model_vars <- c("Int", unique(unlist(model.terms.coef.names)))
   model_vars = model_vars[model_vars %in% colnames(Xdata)]
-  
+ 
   Xu <- unique(Xdata[,model_vars])
   Xu <- Xu[do.call(order, as.data.frame(Xu)),]
   Zu <- unique(Zdata[,model_vars])
@@ -62,9 +64,6 @@ create_counterfactual_distri = function(ff, theta, mu, X, Z, Xnew, Znew, symmetr
   
   num_Xu = nrow(Xu)
   num_Zu = nrow(Zu)
-
-  
-  modelmat <- rpm.model.matrix(model.terms.names, model.terms.coef.names, Xu, Zu)
   
   # assume same # of explanatory variables for both men's and women's side
   NumGammaW <- num_Xu
@@ -74,30 +73,6 @@ create_counterfactual_distri = function(ff, theta, mu, X, Z, Xnew, Znew, symmetr
   beta <- theta[1:NumBeta]
   GammaW <- theta[(NumBeta+1):(NumBeta+NumGammaW)]
   GammaM <- theta[(NumBeta+NumGammaW+1):length(theta)]
-  
-  # get the proportion of men and women
-  gw = log(nrow(Xdata)/n)
-  gm = log(nrow(Zdata)/n)
-  
-  CP_result=logitProb_latent_opp_set(beta, GammaW, GammaM, modelmat$X, modelmat$Z, gw, gm, n, symmetric)
-  
-  CP_result$CPW
-  CP_result$CPM
-  
-  
-  
-  # get the observed pmfj for the new data
-  n=nrow(Xnew)+nrow(Znew)
-  Xdata = NULL
-  Zdata = NULL
-  Xdata <- cbind(1, Xnew)
-  Zdata <- cbind(1, Znew)
-  colnames(Xdata)[1] <- "Int"
-  colnames(Zdata)[1] <- "Int"
-  Xu <- unique(Xdata[,model_vars])
-  Xu <- Xu[do.call(order, as.data.frame(Xu)),]
-  Zu <- unique(Zdata[,model_vars])
-  Zu <- Zu[do.call(order, as.data.frame(Zu)),]
   
   # get the proportion of men and women
   gw = log(nrow(Xdata)/n)
@@ -113,122 +88,100 @@ create_counterfactual_distri = function(ff, theta, mu, X, Z, Xnew, Znew, symmetr
     Ztype[apply(Zdata[,model_vars], 1, function(x) identical(x, Zu[i,]))] <- i
   }
   
-  # order the data by pair
-  # Xtype_paired = Xtype[unlist(apply(mu, 2, function(x) which(x>0)))] # for regular matrix
-  Xtype_paired = Xtype[mu@i+1] # for sparse matrix
-  Ztype_paired = Ztype[as.logical(colSums(mu))]
+  Xtype_paired = Xtype[unlist(apply(mu_new, 2, function(x) which(x>0)))] 
+  Ztype_paired = Ztype[unlist(apply(mu_new, 1, function(x) which(x>0)))]
+  Xtype_paired = factor(Xtype_paired, 1:num_Xu) # account for missing types
+  Ztype_paired = factor(Ztype_paired, 1:num_Zu) # account for missing types
   
-  # Xtype_single = table(Xtype[!rowSums(mu)])
-  # Ztype_single = table(Ztype[!colSums(mu)])
-  Xtype_single = table(factor(Xtype[!rowSums(mu)], 1:nrow(Xu))) # account for missing types
-  Ztype_single = table(factor(Ztype[!colSums(mu)], 1:nrow(Zu))) # account for missing types
+  Xtype_single = wtd.table(factor(Xtype[!rowSums(mu_new)], 1:num_Xu), weights = X_w_new[-(1:length(Xtype_paired))]) # account for missing types
+  Ztype_single = wtd.table(factor(Ztype[!colSums(mu_new)], 1:num_Zu), weights = Z_w_new[-(1:length(Ztype_paired))]) # account for missing types
   
-  pmfW=table(Xtype)/nrow(mu)
-  pmfM=table(Ztype)/ncol(mu)
+  pmfW = wtd.table(Xtype, weights=X_w_new)
+  pmfW = pmfW/sum(pmfW)
+  pmfM = wtd.table(Ztype, weights=Z_w_new)
+  pmfM = pmfM/sum(pmfM)
   
   num_Xu = nrow(Xu)
   num_Zu = nrow(Zu)
-  pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
-  pmfj[1:num_Xu,1:num_Zu] = unclass(table(Xtype_paired,Ztype_paired)) *2
-  if (length(Xtype_single) > 0) {
-    pmfj[1:num_Xu,1+num_Zu] = Xtype_single
-  } 
-  if (length(Ztype_single) > 0) {
-    pmfj[1+num_Xu,1:num_Zu] = Ztype_single
-  }
   
-  
-  pmfj <- pmfj / (nrow(Xdata) + nrow(Zdata)) # original code only divide by nrow(Xdata)?
-  
- 
-  # create the counterfactual joint distribution using the new data and previous estimates
-  # couples
-  pmfj_est = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu)
-  for (ii in 1:num_Xu) {
-    for (jj in 1:num_Zu) {
-      pmfj_est[ii, jj] = CP_result$CPW[ii,jj]*pmfM[jj]*exp(gm) * CP_result$CPM[jj,ii]*pmfW[ii]*exp(gw) * n
+  if (sampling == "COUPLE") { 
+    
+    pmfj = matrix(0,nrow=num_Xu, ncol=num_Zu) # women (X) indexed by row, men (Z) indexed by column
+    pmfj = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w_new))
+    pmfj = pmfj/sum(pmfj)
+    
+  } else if (sampling == "HOUSEHOLD") {
+    
+    pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
+    pmfj[1:num_Xu,1:num_Zu] = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w_new))
+    
+    if (length(Xtype_single) > 0) {
+      pmfj[1:num_Xu,1+num_Zu] = Xtype_single
     }
-  }
-  # single women
-  for (ii in 1:num_Xu) {
-    pmfj_est[ii, 1+num_Zu] = CP_result$CPW[ii,1+num_Zu]*pmfW[ii]*exp(gw)
-  }
-  # single men
-  for (jj in 1:num_Zu) {
-    pmfj_est[1+num_Xu, jj] = CP_result$CPM[jj,1+num_Xu]*pmfM[jj]*exp(gm)
-  }
-  
-  # debug
-  # # sum of type 1 females ( ~= exp(gw) * pmfW[1] )
-  # print(paste0("sum of type 1 females (should be ", exp(gw)*pmfW[1], " :"))
-  # print(sum(pmfj_est[1,]))
-  # 
-  # # sum of type 2 females ( ~= exp(gw)  * pmfW[2] )
-  # print(paste0("sum of type 2 females (should be ", exp(gw)*pmfW[2], " :"))
-  # print(sum(pmfj_est[2,]))
-  # 
-  # # sum of all females ( ~= exp(gw) )
-  # print(paste0("sum of all females (should be ", exp(gw), " :"))
-  # print(sum(pmfj_est[1:2,]))
-  # 
-  # # sum of type 1 males ( ~= exp(gm) * pmfM[1] )
-  # print(paste0("sum of type 1 males (should be ", exp(gm)*pmfM[1], " :"))
-  # print(sum(pmfj_est[,1]))
-  # 
-  # # sum of type 2 males ( ~= exp(gm) * pmfM[2] )
-  # print(paste0("sum of type 2 males (should be ", exp(gm)*pmfM[2], " :"))
-  # print(sum(pmfj_est[,2]))
-  # 
-  # # sum of all males ( ~= exp(gm) )
-  # print(paste0("sum of all males (should be ", exp(gm), " :"))
-  # print(sum(pmfj_est[,1:2]))
-  
-  # each couple consists of 2 people
-  for (ii in 1:num_Xu) {
-    for (jj in 1:num_Zu) {
-      pmfj_est[ii, jj] = pmfj_est[ii, jj] * 2 # CP_result$CPW[ii,jj]*pmfM[jj]*exp(gm) * CP_result$CPM[jj,ii]*pmfW[ii]*exp(gw) * n * 2
+    if (length(Ztype_single) > 0) {
+      pmfj[1+num_Xu,1:num_Zu] = Ztype_single
     }
+    
+    pmfj = pmfj/sum(pmfj)
+    
+  } else { # assume "INDIV"
+    
+    pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
+    pmfj[1:num_Xu,1:num_Zu] = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w_new)) *2
+   
+    if (length(Xtype_single) > 0) {
+      pmfj[1:num_Xu,1+num_Zu] = Xtype_single
+    }
+    if (length(Ztype_single) > 0) {
+      pmfj[1+num_Xu,1:num_Zu] = Ztype_single
+    }
+    
+    pmfj = pmfj / sum(pmfj)
+    
   }
   
-  # debug
-  # # sum of population ( ~= 1 )
-  # print("sum of population (should be 1")
-  # print(sum(pmfj_est))
+
+  loglikfun_fixed_pref <- function(theta, beta, Xd, Zd, NumGammaW, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling){
+    NumBeta <- 0
+    GammaW <- theta[(NumBeta+1):(NumBeta+NumGammaW)]
+    GammaM <- theta[(NumBeta+NumGammaW+1):length(theta)]
+    -loglikelihood_CP(beta, GammaW, GammaM, Xd, Zd, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling)
+  }
+  eqfun_fixed_pref <- function(theta, beta, Xd, Zd, NumGammaW, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling){
+    NumBeta <- 0
+    GammaW <- theta[(NumBeta+1):(NumBeta+NumGammaW)]
+    GammaM <- theta[(NumBeta+NumGammaW+1):length(theta)]
+    equality_constraint_CP(beta, GammaW, GammaM, Xd, Zd, pmfW, pmfM, gw, gm, n, symmetric, sampling)
+  }
+  gloglikfun_fixed_pref <- function(theta, beta, Xd, Zd, NumGammaW, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling){
+    nl.grad(theta, loglikfun_fixed_pref,beta=beta,Xd=Xd,Zd=Zd,NumGammaW=NumGammaW,
+            pmfW=pmfW,pmfM=pmfM,pmfj=pmfj,gw=gw, gm=gm, n=n, symmetric=symmetric, sampling=sampling)
+  }
+  jeqfun_fixed_pref <- function(theta, beta, Xd, Zd, NumGammaW, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling){
+    nl.jacobian(theta, eqfun_fixed_pref, beta=beta,Xd=Xd,Zd=Zd,NumGammaW=NumGammaW,
+                pmfW=pmfW,pmfM=pmfM, pmfj=pmfj,gw=gw,gm=gm,n=n,symmetric=symmetric, sampling=sampling)
+  }
   
-  # # compare estimated joint probabilities with truth
-  # print("estimated joint probabilities")
-  # print(pmfj_est)
-  # print("observed joint probabilities")
-  # print(pmfj)
   
-  # # print likelihood value
-  # loglik = loglikelihood_CP(beta, GammaW, GammaM, modelmat$X, modelmat$Z, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling="INDIV")
-  # logliknull = loglikelihood_null_CP(GammaW, GammaM, modelmat$X, modelmat$Z, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling="INDIV")
-  # logliknull_gamma = loglikelihood_null_CP_gamma(GammaW, GammaM, modelmat$X, modelmat$Z, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling="INDIV")
-  # print(paste0("loglik = ", loglik))
-  # print(paste0("logliknull = ", logliknull))
-  # # print(paste0("logliknull_gamma = ", logliknull_gamma))
+  modelmat <- rpm.model.matrix(model.terms.names, model.terms.coef.names, Xu, Zu)
   
-  # # chi-squared statistics
-  # if (symmetric) {
-  #   df = NumBeta
-  # } else {
-  #   df = NumBeta # same number of explanatory variables for both sides
-  # }
-  # # p.val1 <- 1 - pchisq(-2*(loglik-logliknull), df=df) 
-  # # print(p.val1)
-  # p.val2 <- pchisq(-2*(loglik-logliknull), df=df, lower.tail=FALSE) 
-  # print(paste0("chi-squared p-val = ", p.val2))
+  X <- modelmat$X
+  Z <- modelmat$Z
   
-  # # debug
-  # diffVecnull_gamma = equality_constraint_null_CP_gamma(GammaW, GammaM, modelmat$X, modelmat$Z, pmfW, pmfM, gw, gm, n, symmetric, sampling="INDIV")
-  # diffVecnull = equality_constraint_null_CP(GammaW, GammaM, modelmat$X, modelmat$Z, pmfW, pmfM, gw, gm, n, symmetric, sampling="INDIV")
-  # print("diffVecnull_gamma ")
-  # print(diffVecnull_gamma)
-  # print("diffVecnull")
-  # print(diffVecnull)
+  # at least for now, I'm only handling control[["algorithm"]]!="solnp"
+  out <- nloptr(x0=theta[-c(1:NumBeta)], eval_f=loglikfun_fixed_pref, eval_grad_f=gloglikfun_fixed_pref,
+                eval_g_eq=eqfun_fixed_pref, eval_jac_g_eq=jeqfun_fixed_pref,
+                lb=rep(0,NumGamma), # ub=rep(Inf,NumGamma),
+                beta=theta[1:NumBeta], Xd=X, Zd=Z, NumGammaW=NumGammaW,
+                pmfW=pmfW, pmfM=pmfM, pmfj=pmfj, gw=gw, gm=gm, n=n, symmetric=symmetric, sampling=sampling,
+                opts=control)
   
-  return(list(pmfj_est=pmfj_est, pmfj_obs=pmfj))
+  theta_new = c(theta[1:NumBeta], out$solution)
+  names(theta_new) <- names(theta)
+
+  distr = check_CP_latent(ff, theta_new, mu_new, X_new, Z_new, X_w_new, Z_w_new, pair_w_new, sampling, symmetric)  
+  
+  return(list(pmfj_cf=distr$pmfj_est, pmfj_obs=distr$pmfj_obs))
   
 }
 

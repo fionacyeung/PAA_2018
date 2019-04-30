@@ -54,8 +54,9 @@ library(nloptr)
 library(numDeriv)
 library(MASS)
 library(Matrix)
+library(questionr)
 
-fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, theta_0=NULL, control){
+fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0=NULL, control){
 
     symmetric = control[["symmetric"]]
     sampling = control[["sampling_protocol"]]
@@ -97,8 +98,6 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, theta_0=NULL, control){
     Zu <- unique(Zdata[,model_vars])
     Zu <- Zu[do.call(order, as.data.frame(Zu)),]
     
-    
-    # 4) Create joint PMF
     # Xtype: group membership for women (one for each woman in the pop)
     Xtype <- rep(NA,nrow(Xdata))
     for(i in 1:nrow(Xu)){
@@ -110,28 +109,40 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, theta_0=NULL, control){
         Ztype[apply(Zdata[,model_vars], 1, function(x) identical(x, Zu[i,]))] <- i
     }
     
-    # order the data by pair
-    # Xtype_paired = Xtype[unlist(apply(mu, 2, function(x) which(x>0)))] # for regular matrix
-    Xtype_paired = Xtype[mu@i+1] # for sparse matrix
-    Ztype_paired = Ztype[as.logical(colSums(mu))]
-    
-    # Xtype_single = table(Xtype[!rowSums(mu)])
-    # Ztype_single = table(Ztype[!colSums(mu)])
-    Xtype_single = table(factor(Xtype[!rowSums(mu)], 1:nrow(Xu))) # account for missing types
-    Ztype_single = table(factor(Ztype[!colSums(mu)], 1:nrow(Zu))) # account for missing types
-
-    
-    pmfW=table(Xtype)/nrow(mu)
-    pmfM=table(Ztype)/ncol(mu)
+    # pmfW=table(Xtype)/nrow(mu)
+    # pmfM=table(Ztype)/ncol(mu)
+    pmfW = wtd.table(Xtype, weights=X_w)
+    pmfW = pmfW/sum(pmfW)
+    pmfM = wtd.table(Ztype, weights=Z_w)
+    pmfM = pmfM/sum(pmfM)
     
     num_Xu = nrow(Xu)
     num_Zu = nrow(Zu)
     
+    
+    # 4) Create joint PMF
+    
+    # order the data by pair
+    Xtype_paired = Xtype[unlist(apply(mu, 2, function(x) which(x>0)))] 
+    Ztype_paired = Ztype[unlist(apply(mu, 1, function(x) which(x>0)))]
+    Xtype_paired = factor(Xtype_paired, 1:num_Xu) # account for missing types
+    Ztype_paired = factor(Ztype_paired, 1:num_Zu) # account for missing types
+    # Xtype_paired = Xtype[mu@i+1] # for sparse matrix
+    # Ztype_paired = Ztype[as.logical(colSums(mu))]
+    
+    # Xtype_single = table(Xtype[!rowSums(mu)])
+    # Ztype_single = table(Ztype[!colSums(mu)])
+    # Xtype_single = table(factor(Xtype[!rowSums(mu)], 1:nrow(Xu))) # account for missing types
+    # Ztype_single = table(factor(Ztype[!colSums(mu)], 1:nrow(Zu))) # account for missing types
+    Xtype_single = wtd.table(factor(Xtype[!rowSums(mu)], 1:num_Xu), weights = X_w[-(1:length(Xtype_paired))]) # account for missing types
+    Ztype_single = wtd.table(factor(Ztype[!colSums(mu)], 1:num_Zu), weights = Z_w[-(1:length(Ztype_paired))]) # account for missing types
+    
     if (sampling == "COUPLE") { 
       
       pmfj = matrix(0,nrow=num_Xu, ncol=num_Zu) # women (X) indexed by row, men (Z) indexed by column
-      pmfj = unclass(table(Xtype_paired,Ztype_paired))
-      pmfj = pmfj / nrow(Xdata)
+      pmfj = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w))
+      # pmfj = pmfj / nrow(Xdata)
+      pmfj = pmfj/sum(pmfj)
       
       
     } else if (sampling == "HOUSEHOLD") {
@@ -139,71 +150,75 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, theta_0=NULL, control){
       pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
       
       # pmfj[1:num_Xu,1:num_Zu] = unclass(table(Xtype_paired,Ztype_paired))
+      pmfj[1:num_Xu,1:num_Zu] = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w))
       
-      # account for types of pairs that are not observed
-      tmp = unclass(table(Xtype_paired,Ztype_paired))
-      pmfj[1:nrow(tmp),1:ncol(tmp)] = tmp
-      # missing rows
-      idx = which(!((1:num_Xu) %in% rownames(tmp)))
-      if (length(idx)>0) {
-        for (ii in 1:length(idx)) {
-          pmfj[(idx[ii]+1):(nrow(tmp)+ii),1:ncol(tmp)]= pmfj[idx[ii]:(nrow(tmp)+ii-1),1:ncol(tmp)]
-          pmfj[idx[ii],] = 0
-        }
-      }
-      # missing cols
-      idx = which(!((1:num_Zu) %in% colnames(tmp)))
-      if (length(idx)>0) {
-        for (ii in 1:length(idx)) {
-          pmfj[,(idx[ii]+1):(ncol(tmp)+ii)]= pmfj[,idx[ii]:(ncol(tmp)+ii-1)]
-          pmfj[,idx[ii]] = 0
-        }
-      }
-      
+      # # account for types of pairs that are not observed
+      # tmp = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w))
+      # pmfj[1:nrow(tmp),1:ncol(tmp)] = tmp
+      # # missing rows
+      # idx = which(!((1:num_Xu) %in% rownames(tmp)))
+      # if (length(idx)>0) {
+      #   for (ii in 1:length(idx)) {
+      #     pmfj[(idx[ii]+1):(nrow(tmp)+ii),1:ncol(tmp)]= pmfj[idx[ii]:(nrow(tmp)+ii-1),1:ncol(tmp)]
+      #     pmfj[idx[ii],] = 0
+      #   }
+      # }
+      # # missing cols
+      # idx = which(!((1:num_Zu) %in% colnames(tmp)))
+      # if (length(idx)>0) {
+      #   for (ii in 1:length(idx)) {
+      #     pmfj[,(idx[ii]+1):(ncol(tmp)+ii)]= pmfj[,idx[ii]:(ncol(tmp)+ii-1)]
+      #     pmfj[,idx[ii]] = 0
+      #   }
+      # }
+       
       if (length(Xtype_single) > 0) {
         pmfj[1:num_Xu,1+num_Zu] = Xtype_single
-      } 
+      }
       if (length(Ztype_single) > 0) {
         pmfj[1+num_Xu,1:num_Zu] = Ztype_single
       }
       
-      pmfj = pmfj / nrow(Xdata)
-      
+      # pmfj = pmfj / nrow(Xdata)
+      pmfj = pmfj/sum(pmfj)
       
     } else { # assume "INDIV"
       
       pmfj = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu) # women (X) indexed by row, men (Z) indexed by column
       
       # pmfj[1:num_Xu,1:num_Zu] = unclass(table(Xtype_paired,Ztype_paired)) *2
-      tmp = unclass(table(Xtype_paired,Ztype_paired)) *2
-      pmfj[1:nrow(tmp),1:ncol(tmp)] = tmp
+      # tmp = unclass(table(Xtype_paired,Ztype_paired)) *2
+      # pmfj[1:nrow(tmp),1:ncol(tmp)] = tmp
+      pmfj[1:num_Xu,1:num_Zu] = unclass(wtd.table(Xtype_paired, Ztype_paired, weights = pair_w)) *2
       
-      # account for types of pairs that are not observed
-      # missing rows
-      idx = which(!((1:num_Xu) %in% rownames(tmp)))
-      if (length(idx)>0) {
-        for (ii in 1:length(idx)) {
-          pmfj[(idx[ii]+1):(nrow(tmp)+ii),1:ncol(tmp)]= pmfj[idx[ii]:(nrow(tmp)+ii-1),1:ncol(tmp)]
-          pmfj[idx[ii],] = 0
-        }
-      }
-      # missing cols
-      idx = which(!((1:num_Zu) %in% colnames(tmp)))
-      if (length(idx)>0) {
-        for (ii in 1:length(idx)) {
-          pmfj[,(idx[ii]+1):(ncol(tmp)+ii)]= pmfj[,idx[ii]:(ncol(tmp)+ii-1)]
-          pmfj[,idx[ii]] = 0
-        }
-      }
       
+      # # account for types of pairs that are not observed
+      # # missing rows
+      # idx = which(!((1:num_Xu) %in% rownames(tmp)))
+      # if (length(idx)>0) {
+      #   for (ii in 1:length(idx)) {
+      #     pmfj[(idx[ii]+1):(nrow(tmp)+ii),1:ncol(tmp)]= pmfj[idx[ii]:(nrow(tmp)+ii-1),1:ncol(tmp)]
+      #     pmfj[idx[ii],] = 0
+      #   }
+      # }
+      # # missing cols
+      # idx = which(!((1:num_Zu) %in% colnames(tmp)))
+      # if (length(idx)>0) {
+      #   for (ii in 1:length(idx)) {
+      #     pmfj[,(idx[ii]+1):(ncol(tmp)+ii)]= pmfj[,idx[ii]:(ncol(tmp)+ii-1)]
+      #     pmfj[,idx[ii]] = 0
+      #   }
+      # }
+
       if (length(Xtype_single) > 0) {
         pmfj[1:num_Xu,1+num_Zu] = Xtype_single
-      } 
+      }
       if (length(Ztype_single) > 0) {
         pmfj[1+num_Xu,1:num_Zu] = Ztype_single
       }
       
-      pmfj = pmfj / (nrow(Xdata) + nrow(Zdata)) 
+      # pmfj = pmfj / (nrow(Xdata) + nrow(Zdata)) 
+      pmfj = pmfj / sum(pmfj)
       
     }
    
