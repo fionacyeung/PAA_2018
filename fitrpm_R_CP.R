@@ -66,8 +66,8 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0=NUL
     
     # get the proportion of men and women
     n = nrow(Xdata) + nrow(Zdata)
-    gw = log(nrow(Xdata)/n)
-    gm = log(nrow(Zdata)/n)
+    gw = log(nrow(Xdata)/n*2) # to ensure exp(gw)+exp(gm) = 2
+    gm = log(nrow(Zdata)/n*2)
     
     # 1) parse the formula
     # intercept is always added as the first column

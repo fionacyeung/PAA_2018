@@ -140,8 +140,8 @@ check_CP_latent = function(ff, theta, mu, X, Z, X_w, Z_w, pair_w, sampling, symm
   GammaM <- theta[(NumBeta+NumGammaW+1):length(theta)]
   
   # get the proportion of men and women
-  gw = log(nrow(Xdata)/n)
-  gm = log(nrow(Zdata)/n)
+  gw = log(nrow(Xdata)/n*2) # to ensure exp(gw)+exp(gm) = 2
+  gm = log(nrow(Zdata)/n*2)
   
   CP_result=logitProb_latent_opp_set(beta, GammaW, GammaM, modelmat$X, modelmat$Z, gw, gm, n, symmetric)
   

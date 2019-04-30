@@ -75,8 +75,8 @@ create_counterfactual_distri = function(ff, theta, mu_new, X_new, Z_new, X_w_new
   GammaM <- theta[(NumBeta+NumGammaW+1):length(theta)]
   
   # get the proportion of men and women
-  gw = log(nrow(Xdata)/n)
-  gm = log(nrow(Zdata)/n)
+  gw = log(nrow(Xdata)/n*2) # to ensure exp(gw)+exp(gm) = 2
+  gm = log(nrow(Zdata)/n*2)
   
   Xtype <- rep(NA,nrow(Xdata))
   for(i in 1:nrow(Xu)){
