@@ -283,16 +283,18 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0=NUL
     
     # NULL likelihood
     loglikNULLfun <- function(theta, Xd, Zd, NumGammaW, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling){
-      NumBeta <- 0
-      GammaW <- theta[(NumBeta+1):(NumBeta+NumGammaW)]
-      GammaM <- theta[(NumBeta+NumGammaW+1):length(theta)]
-      -loglikelihood_null_CP(GammaW, GammaM, Xd, Zd, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling)
+      if (symmetric) NumBeta <- dim(Xd)[3] else NumBeta <- dim(Xd)[3]+dim(Zd)[3]
+      beta <- rep(0, NumBeta)
+      GammaW <- theta[1:NumGammaW]
+      GammaM <- theta[(NumGammaW+1):length(theta)]
+      -loglikelihood_CP(beta, GammaW, GammaM, Xd, Zd, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling)
     }
     eqNULLfun <- function(theta, Xd, Zd, NumGammaW, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling){
-      NumBeta <- 0
-      GammaW <- theta[(NumBeta+1):(NumBeta+NumGammaW)]
-      GammaM <- theta[(NumBeta+NumGammaW+1):length(theta)]
-      equality_constraint_null_CP(GammaW, GammaM, Xd, Zd, pmfW, pmfM, gw, gm, n, symmetric, sampling)
+      if (symmetric) NumBeta <- dim(Xd)[3] else NumBeta <- dim(Xd)[3]+dim(Zd)[3]
+      beta <- rep(0, NumBeta)
+      GammaW <- theta[1:NumGammaW]
+      GammaM <- theta[(NumGammaW+1):length(theta)]
+      equality_constraint_CP(beta, GammaW, GammaM, Xd, Zd, pmfW, pmfM, gw, gm, n, symmetric, sampling)
     }
     gloglikNULLfun <- function(theta, Xd, Zd, NumGammaW, pmfW, pmfM, pmfj, gw, gm, n, symmetric, sampling){
       nl.grad(theta, loglikNULLfun,Xd=Xd,Zd=Zd,NumGammaW=NumGammaW,
@@ -370,11 +372,23 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0=NUL
                        Xd=X,Zd=Z,NumGammaW=NumGammaW,
                        pmfW=pmfW, pmfM=pmfM, pmfj=pmfj, gw=gw, gm=gm, n=n, symmetric=symmetric, sampling=sampling,
                        opts=control)
-    out$loglik.null <- -K*out.null$objective
-    #       out$loglik <- out$loglik - out$loglik.null + K*loglik.ref
-    #       out$loglik.null <- K*loglik.ref
+    # out$loglik.null <- -K*out.null$objective
+    # #       out$loglik <- out$loglik - out$loglik.null + K*loglik.ref
+    # #       out$loglik.null <- K*loglik.ref
+    
+    out$null_solution = out.null$solution   
     out$pmfj=pmfj; out$pmfW=pmfW; out$pmfM=pmfM
     out$Xd=X; out$Zd=Z
+    
+    # chi-squared test
+    matching_freq = check_CP_latent(formula, out$solution, mu, Xdata, Zdata, X_w, Z_w, pair_w, sampling, symmetric)
+    matching_freq_null = check_CP_latent(formula, c(rep(0, NumBeta), out$null_solution), mu, Xdata, Zdata, 
+                                         X_w, Z_w, pair_w, sampling, symmetric)
+
+    ct = chisq.test(x=matrix(matching_freq$pmfj_est * n,nrow=1)[-(num_Zu+1)*(num_Xu+1)],
+                    p=matrix(matching_freq_null$pmfj_est *n,nrow=1)[-(num_Zu+1)*(num_Xu+1)], rescale.p = T)
+    out$chisq_stat = ct$statistic
+    out$p.value = ct$p.value
     
     if(control[["hessian"]]){
       
@@ -407,7 +421,7 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0=NUL
       # out$hess_CP = asym_var_out$hess_CP
       
     }else{
-      out$covar <- diag(rep(NA,length(th_hat)))
+      out$covar2 <- diag(rep(NA,length(th_hat)))
     }
     
     out$control <- control

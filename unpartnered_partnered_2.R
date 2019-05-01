@@ -133,80 +133,6 @@ process_data = function(data, complete_cases_only) {
               X_w=X_w, Z_w=Z_w, pair_w=pair_w))
 }
 
-# process_data = function(data, use_last_wave_only, complete_cases_only) {
-#   
-#   # only use last wave of the panel
-#   if (use_last_wave_only) {
-#     last_wave = max(unique(data$wavetime))
-#     last_wave_idx = which(data$wavetime == last_wave)
-#     data = data[last_wave_idx,]
-#   }
-#   
-#   # separate the couples from the singles
-#   idx = which(!is.na(data$allrespartid_w))
-#   paired = data[idx,c("pid", "spanel_all", "wavetime", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
-#   paired$pair_id = rep(1:(nrow(paired)/2), each=2)
-#   single = data[-idx,c("pid", "spanel_all", "wavetime", "wpfinwgt_t", "tage_t", "female_t", "race_t", "educlevel_t", "allrespartid_w", "newrelunpar" )]
-#   single$pair_id = rep(0,nrow(single))
-#   
-#   # order the partners at the same index
-#   paired_females = paired[paired$female_t == "Female",] # their spouses have the same indices in paired_males
-#   single_females = single[single$female_t == "Female",]
-#   paired_males = paired[paired$female_t == "Male",]
-#   single_males = single[single$female_t == "Male",]
-#   # sanity check
-#   nrow(paired_females) == nrow(paired_males)
-#   
-#   if (complete_cases_only) {
-#     # get rid of the incomplete cases for pairs
-#     incompl_idx = which(!complete.cases(paired_females))
-#     paired_females = paired_females[-incompl_idx,]
-#     paired_males = paired_males[-incompl_idx,]
-#     incompl_idx = which(!complete.cases(paired_males))
-#     paired_females = paired_females[-incompl_idx,]
-#     paired_males = paired_males[-incompl_idx,]
-#     
-#     # get rid of the incomplete cases for singles
-#     single_females$allrespartid_w = rep(0, nrow(single_females))
-#     single_males$allrespartid_w = rep(0, nrow(single_males))
-#     incompl_idx = which(!complete.cases(single_females))
-#     single_females = single_females[-incompl_idx,]
-#     incompl_idx = which(!complete.cases(single_males))
-#     single_males = single_males[-incompl_idx,]
-#     # sanity check
-#     nrow(paired_females) == nrow(paired_males)
-#   }
-#   
-#   # all females (paired females first)
-#   Xdata = rbind(paired_females, single_females)
-#   # all males (paired males first)
-#   Zdata = rbind(paired_males, single_males)
-#   # sanity checks
-#   all(Xdata$female_t == "Female")
-#   all(Zdata$female_t == "Male")
-#   
-#   
-#   # only keep columns that are attributes
-#   Xdata = Xdata[,c("tage_t", "race_t", "educlevel_t")]
-#   Zdata = Zdata[,c("tage_t", "race_t", "educlevel_t")]
-#   
-#   
-#   # create the adjacency matrix
-#   n_pairs = nrow(paired_females)
-#   n_sw = nrow(Xdata) - n_pairs
-#   n_sm = nrow(Zdata) - n_pairs
-#   
-#   # observed matching (sparse matrix)
-#   mu = bdiag(Diagonal(n_pairs),Matrix(0,nrow=n_sw,ncol=n_sm))
-#   
-#   Xdata = as.matrix(Xdata)
-#   Zdata = as.matrix(Zdata)
-#   
-#   return(list(Xdata=Xdata, Zdata=Zdata, mu=mu, 
-#               paired_females=paired_females, paired_males=paired_males,
-#               single_females=single_females, single_males=single_males))
-# }
-
 
 ######################## pre-process data ##############################
 
@@ -247,22 +173,22 @@ processed_1996 = process_data(data1996, complete_cases_only)
 processed_2001 = process_data(data2001, complete_cases_only)
 processed_2004 = process_data(data2004, complete_cases_only)
 processed_2008 = process_data(data2008, complete_cases_only)
-processed_all = list(Xdata=rbind(processed_1996$Xdata, processed_2001$Xdata, processed_2004$Xdata, processed_2008$Xdata),
-                           Zdata=rbind(processed_1996$Zdata, processed_2001$Zdata, processed_2004$Zdata, processed_2008$Zdata),
-                           mu = bdiag(processed_1996$mu, processed_2001$mu, processed_2004$mu, processed_2008$mu),
-                           paired_females=rbind(processed_1996$paired_females, processed_2001$paired_females, processed_2004$paired_females, processed_2008$paired_females),
-                           paired_males=rbind(processed_1996$paired_males, processed_2001$paired_males, processed_2004$paired_males, processed_2008$paired_males),
-                           single_females=rbind(processed_1996$single_females, processed_2001$single_females, processed_2004$single_females, processed_2008$single_females),
-                           single_males=rbind(processed_1996$single_males, processed_2001$single_males, processed_2004$single_males, processed_2008$single_males),
-                           X_w = c(processed_1996$X_w, processed_2001$X_w, processed_2004$X_w, processed_2008$X_w),
-                           Z_w = c(processed_1996$Z_w, processed_2001$Z_w, processed_2004$Z_w, processed_2008$Z_w),
-                           pair_w = c(processed_1996$pair_w, processed_2001$pair_w, processed_2004$pair_w, processed_2008$pair_w))
+# processed_all = list(Xdata=rbind(processed_1996$Xdata, processed_2001$Xdata, processed_2004$Xdata, processed_2008$Xdata),
+#                            Zdata=rbind(processed_1996$Zdata, processed_2001$Zdata, processed_2004$Zdata, processed_2008$Zdata),
+#                            mu = bdiag(processed_1996$mu, processed_2001$mu, processed_2004$mu, processed_2008$mu),
+#                            paired_females=rbind(processed_1996$paired_females, processed_2001$paired_females, processed_2004$paired_females, processed_2008$paired_females),
+#                            paired_males=rbind(processed_1996$paired_males, processed_2001$paired_males, processed_2004$paired_males, processed_2008$paired_males),
+#                            single_females=rbind(processed_1996$single_females, processed_2001$single_females, processed_2004$single_females, processed_2008$single_females),
+#                            single_males=rbind(processed_1996$single_males, processed_2001$single_males, processed_2004$single_males, processed_2008$single_males),
+#                            X_w = c(processed_1996$X_w, processed_2001$X_w, processed_2004$X_w, processed_2008$X_w),
+#                            Z_w = c(processed_1996$Z_w, processed_2001$Z_w, processed_2004$Z_w, processed_2008$Z_w),
+#                            pair_w = c(processed_1996$pair_w, processed_2001$pair_w, processed_2004$pair_w, processed_2008$pair_w))
 
 print(paste0("1996: ", nrow(processed_1996$paired_females)*2/(nrow(processed_1996$single_females)+nrow(processed_1996$single_males)+nrow(processed_1996$paired_females)*2), " are paired"))
 print(paste0("2001: ", nrow(processed_2001$paired_females)*2/(nrow(processed_2001$single_females)+nrow(processed_2001$single_males)+nrow(processed_2001$paired_females)*2), " are paired"))
 print(paste0("2004: ", nrow(processed_2004$paired_females)*2/(nrow(processed_2004$single_females)+nrow(processed_2004$single_males)+nrow(processed_2004$paired_females)*2), " are paired"))
 print(paste0("2008: ", nrow(processed_2008$paired_females)*2/(nrow(processed_2008$single_females)+nrow(processed_2008$single_males)+nrow(processed_2008$paired_females)*2), " are paired"))
-print(paste0("all: ", nrow(processed_all$paired_females)*2/(nrow(processed_all$single_females)+nrow(processed_all$single_males)+nrow(processed_all$paired_females)*2), " are paired"))
+# print(paste0("all: ", nrow(processed_all$paired_females)*2/(nrow(processed_all$single_females)+nrow(processed_all$single_males)+nrow(processed_all$paired_females)*2), " are paired"))
 
 ################# source the algo files and load the libraries ################
 
@@ -349,10 +275,14 @@ print("Coeff:")
 print(out$solution)
 print("equality:")
 print(out$eq)
-print("Likelihood ratio:")
-print(as.numeric(out$loglik/out$loglik.null))
+# print("Likelihood ratio:")
+# print(as.numeric(out$loglik/out$loglik.null))
+print("chi-squared test statistic:")
+print(out$chisq_stat) 
+print("chi-squared test p-value:")
+print(out$p.value)
 print("Standard error:")
-print(out$covar)
+print(out$covar2)
 
 # output table
 dff = data.frame(out$solution)
