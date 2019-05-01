@@ -249,16 +249,62 @@ control = list("algorithm"="NLOPT_LD_SLSQP", "symmetric"=symmetric, "sampling_pr
 theta_0 = NULL
 
 
+############## bootstrap ###################
+
+library(foreach)
+library(doSNOW)
+
+# parallel
+cl<-makeCluster(4) #change to your number of CPU cores
+# cl <- makeCluster(16, type="MPI")
+registerDoSNOW(cl)
+
+# bootstrap iterations
+B = 2
+
 ################################################################
 ################# run algorithm ################################
 
 
+############# fit 1996 data #####################
 
 tic.clearlog()
 tic("start")
 
-############# fit 1996 data #####################
+n_pairs = nrow(processed_1996$paired_females)
+n_females = nrow(processed_1996$Xdata)
+n_single_females = nrow(processed_1996$single_females)
+n_males = nrow(processed_1996$Zdata)
+n_single_males = nrow(processed_1996$single_males)
 
+bootstrap_result_1996 <-
+  foreach (b=1:B, .combine = 'rbind', .packages=c('nloptr','abind', 'Matrix', 'numDeriv', 'MASS', 'questionr')) %dopar% {
+    
+    # for simplicity, we'll keep the same number of pairs as in the original sample
+    pair_keep_idx = sample(1:n_pairs, n_pairs, replace=T)
+    X_single_keep_idx = sample((n_pairs+1):n_females, n_single_females, replace=T)
+    Z_single_keep_idx = sample((n_pairs+1):n_males, n_single_males, replace=T)
+    
+    Xdata = processed_1996$Xdata[c(pair_keep_idx, X_single_keep_idx),]
+    Zdata = processed_1996$Zdata[c(pair_keep_idx, Z_single_keep_idx),]
+    mu = processed_1996$mu
+    X_w = processed_1996$X_w[c(pair_keep_idx, X_single_keep_idx)]
+    Z_w = processed_1996$Z_w[c(pair_keep_idx, Z_single_keep_idx)]
+    pair_w = processed_1996$pair_w[pair_keep_idx]
+    
+    # Compute MLE based on an observed matching
+    out <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
+    
+    c(out$solution, out$eq, out$null_solution, out$chisq_stat, out$p.value, out$covar2)
+}
+toc(log=TRUE, quiet=FALSE)
+log.txt <- tic.log(format = TRUE)
+log.lst <- tic.log(format = FALSE)
+tic.clearlog()
+timings <- unlist(lapply(log.lst, function(x) x$toc - x$tic))
+writeLines(unlist(log.txt))
+
+# original data set
 Xdata = processed_1996$Xdata
 Zdata = processed_1996$Zdata
 mu = processed_1996$mu
@@ -266,103 +312,245 @@ X_w = processed_1996$X_w
 Z_w = processed_1996$Z_w
 pair_w = processed_1996$pair_w
 
-# Compute MLE based on an observed matching
-out <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
+out1996 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
-toc(log=TRUE, quiet=FALSE)
-
+print("1996 panel:")
 print("Coeff:")
-print(out$solution)
+print(out1996$solution)
 print("equality:")
-print(out$eq)
+print(out1996$eq)
 # print("Likelihood ratio:")
-# print(as.numeric(out$loglik/out$loglik.null))
+# print(as.numeric(out1996$loglik/out1996$loglik.null))
 print("chi-squared test statistic:")
-print(out$chisq_stat) 
+print(out1996$chisq_stat) 
 print("chi-squared test p-value:")
-print(out$p.value)
-print("Standard error:")
-print(out$covar2)
+print(out1996$p.value)
+print("asymptotic standard error:")
+print(out1996$covar2)
 
 # output table
-dff = data.frame(out$solution)
-kable(dff)
+dff_1996 = data.frame(out1996$solution)
+kable(dff_1996)
 
-  
-# check the reconstructed joint density for the matching generated from 
-# the estimated parameters
+# compute variance and standard error of the estimates
+diff_est = bootstrap_result_1996[,1:length(out1996$solution)] - matrix(rep(out1996$solution, times=B), nrow=B, byrow=T)
+asympt_var_1996 = matrix(0, nrow=length(out1996$solution), ncol=length(out1996$solution))
+for (b in 1:B) {
+  asympt_var_1996 = asympt_var_1996 + outer(diff_est[b,], diff_est[b,])
+}
+asympt_var_1996 = asympt_var_1996/B
+se_1996 = sqrt(diag(asympt_var_1996))
+print("bootstrap standard error:")
+print(se_1996)
 
-# best_theta = find_best_theta(beta_med, beta_sim, numBeta, numGamma)
 
-# compare estimated joint probabilities with truth
-pmfj = check_CP_latent(ff, out$solution, mu, Xdata, Zdata, X_w, Z_w, pair_w, control[["sampling_protocol"]], control[["symmetric"]])
-print("estimated joint probabilities")
-print(pmfj$pmfj_est)
-print("observed joint probabilities")
-print(pmfj$pmfj_obs)
-
-# KL-divergence = sum(p*log(p/q))
-kl_1 = sum(pmfj$pmfj_est*log(pmfj$pmfj_est/pmfj$pmfj_obs), na.rm=T)
-print("KL-divergence (1): p = 1996 est. preference, q = 1996 observed")
-print(kl_1)
-# kl_2 = KL.plugin(freqs1 = matrix(pmfj$pmfj_est,ncol=1),freqs2 = matrix(pmfj$pmfj_obs,ncol=1))
-# print("KL-divergence (2): p = 1996 est. preference, q = 1996 observed")
-# print(kl_2)
-
-# compare counterfactual joint probabilities with observed
-pmfjc = create_counterfactual_distri(ff, out$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
-                                     processed_2008$X_w, processed_2008$Z_w, processed_2008$pair_w, control)
-
-print("counterfactual joint probabilities")
-print(pmfjc$pmfj_cf)
-print("observed joint probabilities")
-print(pmfjc$pmfj_obs)
-# KL-divergence = sum(p*log(p/q))
-klc = sum(pmfjc$pmfj_cf*log(pmfjc$pmfj_cf/pmfjc$pmfj_obs), na.rm=T)
-print("KL-divergence: p = counterfactual 2008 with 1996 preference, q = 2008 observed")
-print(klc)
-
-log.txt <- tic.log(format = TRUE)
-log.lst <- tic.log(format = FALSE)
-tic.clearlog()
-timings <- unlist(lapply(log.lst, function(x) x$toc - x$tic))
-writeLines(unlist(log.txt))
 
 ############# fit 2001 data ######################
 
+n_pairs = nrow(processed_2001$paired_females)
+n_females = nrow(processed_2001$Xdata)
+n_single_females = nrow(processed_2001$single_females)
+n_males = nrow(processed_2001$Zdata)
+n_single_males = nrow(processed_2001$single_males)
+
+bootstrap_result_2001 <-
+  foreach (b=1:B, .combine = 'rbind', .packages=c('nloptr','abind', 'Matrix', 'numDeriv', 'MASS', 'questionr')) %dopar% {
+    
+    # for simplicity, we'll keep the same number of pairs as in the original sample
+    pair_keep_idx = sample(1:n_pairs, n_pairs, replace=T)
+    X_single_keep_idx = sample((n_pairs+1):n_females, n_single_females, replace=T)
+    Z_single_keep_idx = sample((n_pairs+1):n_males, n_single_males, replace=T)
+    
+    Xdata = processed_2001$Xdata[c(pair_keep_idx, X_single_keep_idx),]
+    Zdata = processed_2001$Zdata[c(pair_keep_idx, Z_single_keep_idx),]
+    mu = processed_2001$mu
+    X_w = processed_2001$X_w[c(pair_keep_idx, X_single_keep_idx)]
+    Z_w = processed_2001$Z_w[c(pair_keep_idx, Z_single_keep_idx)]
+    pair_w = processed_2001$pair_w[pair_keep_idx]
+    
+    out <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
+    
+    c(out$solution, out$eq, out$null_solution, out$chisq_stat, out$p.value, out$covar2)
+  }
+
+# original data set
 Xdata = processed_2001$Xdata
 Zdata = processed_2001$Zdata
 mu = processed_2001$mu
 X_w = processed_2001$X_w
 Z_w = processed_2001$Z_w
 pair_w = processed_2001$pair_w
+
 out2001 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
-dff2001 = data.frame(out2001$solution)
+print("2001 panel:")
+print("Coeff:")
+print(out2001$solution)
+print("equality:")
+print(out2001$eq)
+# print("Likelihood ratio:")
+# print(as.numeric(out2001$loglik/out2001$loglik.null))
+print("chi-squared test statistic:")
+print(out2001$chisq_stat) 
+print("chi-squared test p-value:")
+print(out2001$p.value)
+print("asymptotic standard error:")
+print(out2001$covar2)
+
+# output table
+dff_2001 = data.frame(out2001$solution)
+kable(dff_2001)
+
+# compute variance and standard error of the estimates
+diff_est = bootstrap_result_2001[,1:length(out2001$solution)] - matrix(rep(out2001$solution, times=B), nrow=B, byrow=T)
+asympt_var_2001 = matrix(0, nrow=length(out2001$solution), ncol=length(out2001$solution))
+for (b in 1:B) {
+  asympt_var_2001 = asympt_var_2001 + outer(diff_est[b,], diff_est[b,])
+}
+asympt_var_2001 = asympt_var_2001/B
+se_2001 = sqrt(diag(asympt_var_2001))
+print("bootstrap standard error:")
+print(se_2001)
+
 
 ############# fit 2004 data ######################
 
+n_pairs = nrow(processed_2004$paired_females)
+n_females = nrow(processed_2004$Xdata)
+n_single_females = nrow(processed_2004$single_females)
+n_males = nrow(processed_2004$Zdata)
+n_single_males = nrow(processed_2004$single_males)
+
+bootstrap_result_2004 <-
+  foreach (b=1:B, .combine = 'rbind', .packages=c('nloptr','abind', 'Matrix', 'numDeriv', 'MASS', 'questionr')) %dopar% {
+    
+    # for simplicity, we'll keep the same number of pairs as in the original sample
+    pair_keep_idx = sample(1:n_pairs, n_pairs, replace=T)
+    X_single_keep_idx = sample((n_pairs+1):n_females, n_single_females, replace=T)
+    Z_single_keep_idx = sample((n_pairs+1):n_males, n_single_males, replace=T)
+    
+    Xdata = processed_2004$Xdata[c(pair_keep_idx, X_single_keep_idx),]
+    Zdata = processed_2004$Zdata[c(pair_keep_idx, Z_single_keep_idx),]
+    mu = processed_2004$mu
+    X_w = processed_2004$X_w[c(pair_keep_idx, X_single_keep_idx)]
+    Z_w = processed_2004$Z_w[c(pair_keep_idx, Z_single_keep_idx)]
+    pair_w = processed_2004$pair_w[pair_keep_idx]
+    
+    out <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
+    
+    c(out$solution, out$eq, out$null_solution, out$chisq_stat, out$p.value, out$covar2)
+  }
+
+
+# original data set        
 Xdata = processed_2004$Xdata
 Zdata = processed_2004$Zdata
 mu = processed_2004$mu
 X_w = processed_2004$X_w
 Z_w = processed_2004$Z_w
 pair_w = processed_2004$pair_w
+
 out2004 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
-dff2004 = data.frame(out2004$solution)
+print("2004 panel:")
+print("Coeff:")
+print(out2004$solution)
+print("equality:")
+print(out2004$eq)
+# print("Likelihood ratio:")
+# print(as.numeric(out2004$loglik/out2004$loglik.null))
+print("chi-squared test statistic:")
+print(out2004$chisq_stat) 
+print("chi-squared test p-value:")
+print(out2004$p.value)
+print("asymptotic standard error:")
+print(out2004$covar2)
+
+# output table
+dff_2004 = data.frame(out2004$solution)
+kable(dff_2004)
+
+# compute variance and standard error of the estimates
+diff_est = bootstrap_result_2004[,1:length(out2004$solution)] - matrix(rep(out2004$solution, times=B), nrow=B, byrow=T)
+asympt_var_2004 = matrix(0, nrow=length(out2004$solution), ncol=length(out2004$solution))
+for (b in 1:B) {
+  asympt_var_2004 = asympt_var_2004 + outer(diff_est[b,], diff_est[b,])
+}
+asympt_var_2004 = asympt_var_2004/B
+se_2004 = sqrt(diag(asympt_var_2004))
+print("bootstrap standard error:")
+print(se_2004)
+
+
 
 ############# fit 2008 data ######################
 
+n_pairs = nrow(processed_2008$paired_females)
+n_females = nrow(processed_2008$Xdata)
+n_single_females = nrow(processed_2008$single_females)
+n_males = nrow(processed_2008$Zdata)
+n_single_males = nrow(processed_2008$single_males)
+
+bootstrap_result_2008 <-
+  foreach (b=1:B, .combine = 'rbind', .packages=c('nloptr','abind', 'Matrix', 'numDeriv', 'MASS', 'questionr')) %dopar% {
+    
+    # for simplicity, we'll keep the same number of pairs as in the original sample
+    pair_keep_idx = sample(1:n_pairs, n_pairs, replace=T)
+    X_single_keep_idx = sample((n_pairs+1):n_females, n_single_females, replace=T)
+    Z_single_keep_idx = sample((n_pairs+1):n_males, n_single_males, replace=T)
+    
+    Xdata = processed_2008$Xdata[c(pair_keep_idx, X_single_keep_idx),]
+    Zdata = processed_2008$Zdata[c(pair_keep_idx, Z_single_keep_idx),]
+    mu = processed_2008$mu
+    X_w = processed_2008$X_w[c(pair_keep_idx, X_single_keep_idx)]
+    Z_w = processed_2008$Z_w[c(pair_keep_idx, Z_single_keep_idx)]
+    pair_w = processed_2008$pair_w[pair_keep_idx]
+    
+    out <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
+    
+    c(out$solution, out$eq, out$null_solution, out$chisq_stat, out$p.value, out$covar2)
+  }
+
+# original data set
 Xdata = processed_2008$Xdata
 Zdata = processed_2008$Zdata
 mu = processed_2008$mu
 X_w = processed_2008$X_w
 Z_w = processed_2008$Z_w
 pair_w = processed_2008$pair_w
+
 out2008 <- fitrpm_R_CP(ff, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0, control=control)
 
-dff2008 = data.frame(out2008$solution)
+print("2008 panel:")
+print("Coeff:")
+print(out2008$solution)
+print("equality:")
+print(out2008$eq)
+# print("Likelihood ratio:")
+# print(as.numeric(out2008$loglik/out2008$loglik.null))
+print("chi-squared test statistic:")
+print(out2008$chisq_stat) 
+print("chi-squared test p-value:")
+print(out2008$p.value)
+print("asymptotic standard error:")
+print(out2008$covar2)
+
+# output table
+dff_2008 = data.frame(out2008$solution)
+kable(dff_2008)
+
+# compute variance and standard error of the estimates
+diff_est = bootstrap_result_2008[,1:length(out2008$solution)] - matrix(rep(out2008$solution, times=B), nrow=B, byrow=T)
+asympt_var_2008 = matrix(0, nrow=length(out2008$solution), ncol=length(out2008$solution))
+for (b in 1:B) {
+  asympt_var_2008 = asympt_var_2008 + outer(diff_est[b,], diff_est[b,])
+}
+asympt_var_2008 = asympt_var_2008/B
+se_2008 = sqrt(diag(asympt_var_2008))
+print("bootstrap standard error:")
+print(se_2008)
+
+
 
 # ############# fit all data ######################
 # 
@@ -377,76 +565,123 @@ dff2008 = data.frame(out2008$solution)
 # dffall = data.frame(outall$solution)
 
 
-############### combine coeffs from all panels ##################
+############### combine coeffs and SE from all panels ##################
 
-print(kable(cbind(dff, dff2001, dff2004, dff2008), col.names = c(1996, 2001, 2004, 2008)))
+print("Coeff:")
+print(kable(cbind(dff_1996, dff_2001, dff_2004, dff_2008), col.names = c(1996, 2001, 2004, 2008)))
+
+print("Bootstrap standard error:")
+print(kable(cbind(se_1996, se_2001, se_2004, se_2008), col.names = c(1996, 2001, 2004, 2008)))
+
 
 ####### compare estimated joint probabilities with truth ########
-pmfj = check_CP_latent(ff, out$solution, mu, Xdata, Zdata, X_w, Z_w, pair_w, control[["sampling_protocol"]], control[["symmetric"]])
+
+# check the reconstructed joint density for the matching generated from 
+# the estimated parameters
+
+############## 1996 ################
+
+pmfj_1996 = check_CP_latent(ff, out1996$solution, processed_1996$mu, processed_1996$Xdata, processed_1996$Zdata, 
+                            processed_1996$X_w, processed_1996$Z_w, processed_1996$pair_w, 
+                            control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated joint probabilities")
-print(pmfj$pmfj_est)
+print(pmfj_1996$pmfj_est)
 print("observed joint probabilities")
-print(pmfj$pmfj_obs)
-kl_1 = sum(pmfj$pmfj_est*log(pmfj$pmfj_est/pmfj$pmfj_obs), na.rm=T)
-print("KL-divergence: p = 1996 est. preference, q = 1996 observed")
-print(kl_1)
+print(pmfj_1996$pmfj_obs)
+
+# KL-divergence = sum(p*log(p/q))
+kl_1_1996 = sum(pmfj_1996$pmfj_est * log(pmfj_1996$pmfj_est / pmfj_1996$pmfj_obs), na.rm=T)
+print("KL-divergence (1): p = 1996 est. preference, q = 1996 observed")
+print(kl_1_1996)
 # kl_2 = KL.plugin(freqs1 = matrix(pmfj$pmfj_est,ncol=1),freqs2 = matrix(pmfj$pmfj_obs,ncol=1))
 # print("KL-divergence (2): p = 1996 est. preference, q = 1996 observed")
 # print(kl_2)
 
 
-pmfj2001 = check_CP_latent(ff, out2001$solution, processed_2001$mu, processed_2001$Xdata, processed_2001$Zdata, 
+############## 2001 ################
+
+pmfj_2001 = check_CP_latent(ff, out2001$solution, processed_2001$mu, processed_2001$Xdata, processed_2001$Zdata, 
                            processed_2001$X_w, processed_2001$Z_w, processed_2001$pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated 2001 joint probabilities")
-print(pmfj2001$pmfj_est)
+print(pmfj_2001$pmfj_est)
 print("observed 2001 joint probabilities")
-print(pmfj2001$pmfj_obs)
-kl_1 = sum(pmfj2001$pmfj_est*log(pmfj2001$pmfj_est/pmfj2001$pmfj_obs), na.rm=T)
+print(pmfj_2001$pmfj_obs)
+kl_1_2001 = sum(pmfj_2001$pmfj_est*log(pmfj_2001$pmfj_est / pmfj_2001$pmfj_obs), na.rm=T)
 print("KL-divergence: p = 2001 est. preference, q = 2001 observed")
-print(kl_1)
+print(kl_1_2001)
 # kl_2 = KL.plugin(freqs1 = matrix(pmfj2001$pmfj_est,ncol=1),freqs2 = matrix(pmfj2001$pmfj_obs,ncol=1))
 # print("KL-divergence (2): p = 2001 est. preference, q = 2001 observed")
 # print(kl_2)
 
-pmfj2004 = check_CP_latent(ff, out2004$solution, processed_2004$mu, processed_2004$Xdata, processed_2004$Zdata, 
+
+############# 2004 #################
+
+pmfj_2004 = check_CP_latent(ff, out2004$solution, processed_2004$mu, processed_2004$Xdata, processed_2004$Zdata, 
                            processed_2004$X_w, processed_2004$Z_w, processed_2004$pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated 2004 joint probabilities")
-print(pmfj2004$pmfj_est)
+print(pmfj_2004$pmfj_est)
 print("observed 2004joint probabilities")
-print(pmfj2004$pmfj_obs)
-kl_1 = sum(pmfj2004$pmfj_est*log(pmfj2004$pmfj_est/pmfj2004$pmfj_obs), na.rm=T)
+print(pmfj_2004$pmfj_obs)
+kl_1_2004 = sum(pmfj_2004$pmfj_est * log(pmfj_2004$pmfj_est / pmfj_2004$pmfj_obs), na.rm=T)
 print("KL-divergence: p = 2004 est. preference, q = 2004 observed")
-print(kl_1)
+print(kl_1_2004)
 # kl_2 = KL.plugin(freqs1 = matrix(pmfj2004$pmfj_est,ncol=1),freqs2 = matrix(pmfj2004$pmfj_obs,ncol=1))
 # print("KL-divergence (2): p = 2004 est. preference, q = 2004 observed")
 # print(kl_2)
 
-pmfj2008 = check_CP_latent(ff, out2008$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
+
+############# 2008 #################
+
+
+pmfj_2008 = check_CP_latent(ff, out2008$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
                            processed_2008$X_w, processed_2008$Z_w, processed_2008$pair_w, control[["sampling_protocol"]], control[["symmetric"]])
 print("estimated 2008 joint probabilities")
-print(pmfj2008$pmfj_est)
+print(pmfj_2008$pmfj_est)
 print("observed 2008 joint probabilities")
-print(pmfj2008$pmfj_obs)
-kl_1 = sum(pmfj2008$pmfj_est*log(pmfj2008$pmfj_est/pmfj2008$pmfj_obs), na.rm=T)
+print(pmfj_2008$pmfj_obs)
+kl_1_2008 = sum(pmfj_2008$pmfj_est * log(pmfj_2008$pmfj_est / pmfj_2008$pmfj_obs), na.rm=T)
 print("KL-divergence: p = 2008 est. preference, q = 2008 observed")
-print(kl_1)
+print(kl_1_2008)
 # kl_2 = KL.plugin(freqs1 = matrix(pmfj2008$pmfj_est,ncol=1),freqs2 = matrix(pmfj2008$pmfj_obs,ncol=1))
 # print("KL-divergence (2): p = 2008 est. preference, q = 2008 observed")
 # print(kl_2)
 
-###### next counterfactual ---- using 2001 preferences with 2008 availability #####
+
+###########  compare counterfactual joint probabilities with observed  ############
+
+######### using 1996 preferences with 2008 availability ##########
+
+pmfjc_1996 = create_counterfactual_distri(ff, out1996$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
+                                          processed_2008$X_w, processed_2008$Z_w, processed_2008$pair_w, control)
+
+print("counterfactual joint probabilities")
+print(pmfjc_1996$pmfj_cf)
+print("observed joint probabilities")
+print(pmfjc_1996$pmfj_obs)
+# KL-divergence = sum(p*log(p/q))
+klc_1996 = sum(pmfjc_1996$pmfj_cf * log(pmfjc_1996$pmfj_cf / pmfjc_1996$pmfj_obs), na.rm=T)
+print("KL-divergence: p = counterfactual 2008 with 1996 preference, q = 2008 observed")
+print(klc_1996)
+
+
+######### using 2001 preferences with 2008 availability ##########
+
 # compare counterfactual joint probabilities with observed
-pmfjc2001 = create_counterfactual_distri(ff, out2001$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
+pmfjc_2001 = create_counterfactual_distri(ff, out2001$solution, processed_2008$mu, processed_2008$Xdata, processed_2008$Zdata, 
                              processed_2008$X_w, processed_2008$Z_w, processed_2008$pair_w, control)
 
 print("counterfactual joint probabilities")
-print(pmfjc2001$pmfj_cf)
+print(pmfjc_2001$pmfj_cf)
 print("observed joint probabilities")
-print(pmfjc2001$pmfj_obs)
+print(pmfjc_2001$pmfj_obs)
 # KL-divergence = sum(p*log(p/q))
-klc = sum(pmfjc2001$pmfj_cf*log(pmfjc2001$pmfj_cf/pmfjc2001$pmfj_obs), na.rm=T)
+klc_2001 = sum(pmfjc_2001$pmfj_cf * log(pmfjc_2001$pmfj_cf / pmfjc_2001$pmfj_obs), na.rm=T)
 print("KL-divergence: p = counterfactual 2008 with 2001 preference, q = 2008 observed")
-print(klc)
+print(klc_2001)
+
+save.image(paste0("boostrap_B", B, ".RData"))
+
+stopCluster(cl)
 
 ############### plot the data ####################
 
@@ -465,9 +700,9 @@ df_married_single_edu_m = data.frame(edu=c(processed_1996$paired_males$educlevel
                                               rep(c("married","single"), c(nrow(processed_2004$paired_males),nrow(processed_2004$single_males))),
                                               rep(c("married","single"), c(nrow(processed_2008$paired_males),nrow(processed_2008$single_males)))))
 
-ggplot(df_married_single_edu_m, aes(x=edu, fill=status, color=status)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+print(ggplot(df_married_single_edu_m, aes(x=edu, fill=status, color=status)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
   scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + 
-  ggtitle("Male education: married vs. single") + facet_grid(panel ~ .)
+  ggtitle("Male education: married vs. single") + facet_grid(panel ~ .))
 
 
 df_married_single_edu_f = data.frame(edu=c(processed_1996$paired_females$educlevel_t, processed_1996$single_females$educlevel_t,
@@ -483,9 +718,9 @@ df_married_single_edu_f = data.frame(edu=c(processed_1996$paired_females$educlev
                                               rep(c("married","single"), c(nrow(processed_2004$paired_females),nrow(processed_2004$single_females))),
                                               rep(c("married","single"), c(nrow(processed_2008$paired_females),nrow(processed_2008$single_females)))))
 
-ggplot(df_married_single_edu_f, aes(x=edu, fill=status, color=status)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+print(ggplot(df_married_single_edu_f, aes(x=edu, fill=status, color=status)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
   scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) +
-  ggtitle("Female education: married vs. single") + facet_grid(panel ~ .)
+  ggtitle("Female education: married vs. single") + facet_grid(panel ~ .))
 
 # hist(processed_1996$paired_females[,"educlevel_t"], freq=T)
 # hist(processed_1996$single_females[,"educlevel_t"], freq=T)
@@ -505,8 +740,8 @@ married_female = data.frame(edu=rep(c("hypogamy","homophily","hypergamy"),4),
                                    edu_hypo_hyper_same_2008$hypo, edu_hypo_hyper_same_2008$same, edu_hypo_hyper_same_2008$hyper),
                             panel=as.factor(rep(c(1996, 2001, 2004, 2008),each=3)))
 
-ggplot(married_female, aes(x=edu, y=freq, fill=panel, color=panel)) + geom_bar(stat="identity", position="dodge") + 
-  ggtitle("Female: same, hypo-, hyper-gamy in education")
+print(ggplot(married_female, aes(x=edu, y=freq, fill=panel, color=panel)) + geom_bar(stat="identity", position="dodge") + 
+  ggtitle("Female: same, hypo-, hyper-gamy in education"))
 
 
 ##################### male hypo-, hyper-gamy, and same edu ###############################
@@ -523,8 +758,8 @@ married_male = data.frame(edu=rep(c("hypogamy","homophily","hypergamy"),4),
                                  edu_hypo_hyper_same_2008$hypo, edu_hypo_hyper_same_2008$same, edu_hypo_hyper_same_2008$hyper),
                           panel=as.factor(rep(c(1996, 2001, 2004, 2008),each=3)))
 
-ggplot(married_male, aes(x=edu, y=freq, fill=panel, color=panel)) + geom_bar(stat="identity", position="dodge") + 
-  ggtitle("Male: same, hypo-, hyper-gamy in education")
+print(ggplot(married_male, aes(x=edu, y=freq, fill=panel, color=panel)) + geom_bar(stat="identity", position="dodge") + 
+  ggtitle("Male: same, hypo-, hyper-gamy in education"))
 
 
 
@@ -532,47 +767,47 @@ ggplot(married_male, aes(x=edu, y=freq, fill=panel, color=panel)) + geom_bar(sta
 
 df1996couples = data.frame(edu=c(processed_1996$paired_males$educlevel_t, processed_1996$paired_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_1996$paired_males)), rep("female", nrow(processed_1996$paired_females)))))
-ggplot(df1996couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("1996 married female and male")
+print(ggplot(df1996couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("1996 married female and male"))
 
 
 df2001couples = data.frame(edu=c(processed_2001$paired_males$educlevel_t, processed_2001$paired_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_2001$paired_males)), rep("female", nrow(processed_2001$paired_females)))))
-ggplot(df2001couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2001 married female and male")
+print(ggplot(df2001couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2001 married female and male"))
 
 df2004couples = data.frame(edu=c(processed_2004$paired_males$educlevel_t, processed_2004$paired_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_2004$paired_males)), rep("female", nrow(processed_2004$paired_females)))))
-ggplot(df2004couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2004 married female and male")
+print(ggplot(df2004couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2004 married female and male"))
 
 df2008couples = data.frame(edu=c(processed_2008$paired_males$educlevel_t, processed_2008$paired_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_2008$paired_males)), rep("female", nrow(processed_2008$paired_females)))))
-ggplot(df2008couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2008 married female and male")
+print(ggplot(df2008couples, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2008 married female and male"))
 
 
 ############### plot single females and males education distribution #######################
 
 df1996singles = data.frame(edu=c(processed_1996$single_males$educlevel_t, processed_1996$single_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_1996$single_males)), rep("female", nrow(processed_1996$single_females)))))
-ggplot(df1996singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("1996 single female and male")
+print(ggplot(df1996singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("1996 single female and male"))
 
 df2001singles = data.frame(edu=c(processed_2001$single_males$educlevel_t, processed_2001$single_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_2001$single_males)), rep("female", nrow(processed_2001$single_females)))))
-ggplot(df2001singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2001 single female and male")
+print(ggplot(df2001singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2001 single female and male"))
 
 df2004singles = data.frame(edu=c(processed_2004$single_males$educlevel_t, processed_2004$single_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_2004$single_males)), rep("female", nrow(processed_2004$single_females)))))
-ggplot(df2004singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2004 single female and male")
+print(ggplot(df2004singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2004 single female and male"))
 
 df2008singles = data.frame(edu=c(processed_2008$single_males$educlevel_t, processed_2008$single_females$educlevel_t), 
                            gender=as.factor(c(rep("male", nrow(processed_2008$single_males)), rep("female", nrow(processed_2008$single_females)))))
-ggplot(df2008singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
-  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2008 single female and male")
+print(ggplot(df2008singles, aes(x=edu, fill=gender)) + geom_histogram(binwidth=.5, alpha=.5, position="dodge") + 
+  scale_x_discrete(name ="Education", limits=c("<HS","HS","SomeCollege","BA+")) + ggtitle("2008 single female and male"))
 
 
 ################### contingency tables (rows are females)

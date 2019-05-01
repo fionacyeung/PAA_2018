@@ -154,16 +154,16 @@ check_CP_latent = function(ff, theta, mu, X, Z, X_w, Z_w, pair_w, sampling, symm
   pmfj_est = matrix(0,nrow=1+num_Xu, ncol=1+num_Zu)
   for (ii in 1:num_Xu) {
     for (jj in 1:num_Zu) {
-      pmfj_est[ii, jj] = CP_result$CPW[ii,jj]*pmfM[jj]*exp(gm) * CP_result$CPM[jj,ii]*pmfW[ii]*exp(gw) * n
+      pmfj_est[ii, jj] = CP_result$CPW[ii,jj]*pmfM[jj]*exp(gm) * CP_result$CPM[jj,ii]*pmfW[ii]*exp(gw) * n / (exp(gw)+exp(gm))
     }
   }
   # single women
   for (ii in 1:num_Xu) {
-    pmfj_est[ii, 1+num_Zu] = CP_result$CPW[ii,1+num_Zu]*pmfW[ii]*exp(gw)
+    pmfj_est[ii, 1+num_Zu] = CP_result$CPW[ii,1+num_Zu]*pmfW[ii]*exp(gw) / (exp(gw)+exp(gm))
   }
   # single men
   for (jj in 1:num_Zu) {
-    pmfj_est[1+num_Xu, jj] = CP_result$CPM[jj,1+num_Xu]*pmfM[jj]*exp(gm)
+    pmfj_est[1+num_Xu, jj] = CP_result$CPM[jj,1+num_Xu]*pmfM[jj]*exp(gm) / (exp(gw)+exp(gm))
   }
   
   # debug

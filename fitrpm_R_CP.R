@@ -384,7 +384,7 @@ fitrpm_R_CP <- function(formula, mu, Xdata, Zdata, X_w, Z_w, pair_w, theta_0=NUL
     matching_freq = check_CP_latent(formula, out$solution, mu, Xdata, Zdata, X_w, Z_w, pair_w, sampling, symmetric)
     matching_freq_null = check_CP_latent(formula, c(rep(0, NumBeta), out$null_solution), mu, Xdata, Zdata, 
                                          X_w, Z_w, pair_w, sampling, symmetric)
-
+    
     ct = chisq.test(x=matrix(matching_freq$pmfj_est * n,nrow=1)[-(num_Zu+1)*(num_Xu+1)],
                     p=matrix(matching_freq_null$pmfj_est *n,nrow=1)[-(num_Zu+1)*(num_Xu+1)], rescale.p = T)
     out$chisq_stat = ct$statistic

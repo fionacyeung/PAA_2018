@@ -50,7 +50,7 @@ create_counterfactual_distri = function(ff, theta, mu_new, X_new, Z_new, X_w_new
   model.terms.coef.names <- temp2[-which(temp2 %in% model.terms.names)]
   model.terms.coef.names <- strsplit(model.terms.coef.names, ",")
   
-  # with the old data, get the subset of the variables that are relevant according to the formula
+  # get the subset of the variables that are relevant according to the formula
   # Define the variables used in the model (and hence the unique classes of partners)
   # This is typically a subset of the available variables
   # model_vars <- c("Int", unlist(unique(lapply(model.terms.coef.names, '[[', 1))))
@@ -168,6 +168,7 @@ create_counterfactual_distri = function(ff, theta, mu_new, X_new, Z_new, X_w_new
   X <- modelmat$X
   Z <- modelmat$Z
   
+  # we have to re-estimate Gammas with our prefrence parameters (i.e. beta) because the marginal distributions has changed
   # at least for now, I'm only handling control[["algorithm"]]!="solnp"
   out <- nloptr(x0=theta[-c(1:NumBeta)], eval_f=loglikfun_fixed_pref, eval_grad_f=gloglikfun_fixed_pref,
                 eval_g_eq=eqfun_fixed_pref, eval_jac_g_eq=jeqfun_fixed_pref,
