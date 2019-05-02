@@ -10,6 +10,8 @@ The single individuals are reported repeatedly until they get married or co-habi
 
 This initial version does estimation for different panels (1996, 2001, 2004, and 2008) separately. Estimation was never performed across panels in this initial version.
 
+The variable "B" in unpartnered_partnered_3.R sets the number of iterations used to calculate the standard error of the estimates by bootstrapping.
+
 Timing analysis:
 Some code that was used in generating the results for timing analysis (shown at my ATC meeting) using this data set is included in the folder "timing_analysis".
 
